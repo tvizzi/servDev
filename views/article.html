@@ -1,0 +1,61 @@
+{{define "article"}}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{.Article.Title}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #007BFF;
+            margin-top: 20px;
+        }
+        .articles-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        .article-item {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+        .article-item:last-child {
+            border-bottom: none;
+        }
+        .article-title {
+            font-size: 18px;
+            color: #007BFF;
+            margin: 0;
+        }
+        .article-title a {
+            text-decoration: none;
+        }
+        .article-title a:hover {
+            text-decoration: underline;
+        }
+        .article-content {
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+<h1>{{.Title}}</h1>
+<div class="article-container">
+    <h2 class="article-title">{{.Article.Title}}</h2>
+    <p class="article-content">{{.Article.Content}}</p>
+    <p><strong>Опубликовано:</strong> {{.Article.PublishedAt}}</p>
+</div>
+</body>
+</html>
+{{end}}

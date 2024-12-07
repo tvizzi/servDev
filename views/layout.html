@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        header {
+            background: #007BFF;
+            color: #fff;
+            padding: 10px 0;
+            text-align: center;
+        }
+        header ul {
+            list-style: none;
+            padding: 0;
+        }
+        header ul li {
+            display: inline;
+            margin: 0 15px;
+        }
+        header ul li a {
+            color: #fff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        header ul li a:hover {
+            text-decoration: underline;
+        }
+        main {
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            color: #007BFF;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        table th {
+            background-color: #f4f4f9;
+        }
+        img {
+            width: 100px;
+        }
+        footer {
+            background: #333;
+            color: #fff;
+            text-align: center;
+            padding: 10px 0;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <nav>
+        <ul>
+            <li><a href="/">Главная</a></li>
+            <li><a href="/about">О нас</a></li>
+            <li><a href="/contacts">Контакты</a></li>
+            <li><a href="/signin">Регистрация</a></li>
+            <li><a href="/articles">Статьи</a></li>
+        </ul>
+    </nav>
+</header>
+
+<main>
+    {{if eq .Page "home"}}
+    <h1>Добро пожаловать!</h1>
+    <table>
+        <thead>
+        <tr>
+            <th>Дата</th>
+            <th>Название</th>
+            <th>Превью</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Articles}}
+        <tr>
+            <td>{{.Date}}</td>
+            <td>{{.Name}}</td>
+            <td>
+                <a href="/gallery/{{.ID}}">
+                    <img src="/img/{{.PreviewImage}}" alt="{{.Name}}">
+                </a>
+            </td>
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+    {{else if eq .Page "about"}}
+    <h1>О нас</h1>
+    <p>Мы занимаемся разработкой и внедрением веб-приложений.</p>
+    {{else if eq .Page "contacts"}}
+    <h1>Контакты</h1>
+    <ul>
+        <li>Телефон: {{.Contacts.Phone}}</li>
+        <li>Email: {{.Contacts.Email}}</li>
+        <li>Адрес: {{.Contacts.Address}}</li>
+    </ul>
+    {{else if eq .Page "gallery"}}
+    <h1>{{.Article.Name}}</h1>
+    <img src="/img/{{.Article.FullImage}}" alt="{{.Article.Name}}" width="100%">
+    <p>{{.Article.Desc}}</p>
+    {{end}}
+</main>
+
+<footer>
+    <p>ФИО: Галкин Захар Дмитриевич</p>
+    <p>Группа: 231-321</p>
+</footer>
+</body>
+</html>

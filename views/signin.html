@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        main {
+            margin: 0 auto;
+            padding: 20px;
+            max-width: 500px;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+            color: #007BFF;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Регистрация</h1>
+    <form action="/signin" method="POST">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <div>
+            <label for="name">Имя</label>
+            <input type="text" id="name" name="name" placeholder="Введите имя" required>
+        </div>
+        <div>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="Введите email" required>
+        </div>
+        <div>
+            <label for="password">Пароль</label>
+            <input type="password" id="password" name="password" placeholder="Введите пароль" required>
+        </div>
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+</main>
+</body>
+</html>
