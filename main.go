@@ -18,7 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Структура для статьи
+// структура для статьи
 type Article struct {
 	ID           int    `json:"-"` // Не экспортируется в JSON
 	Date         string `json:"date"`
@@ -29,7 +29,7 @@ type Article struct {
 	Desc         string `json:"desc"`
 }
 
-// Контроллер для обработки запросов
+// контроллер для обработки
 type Controller struct{}
 
 type TemplateEngine struct {
@@ -56,27 +56,26 @@ func (t *TemplateEngine) Load() error {
 }
 
 func (ctrl *Controller) Index(c *fiber.Ctx) error {
-	// Открываем JSON-файл
 	file, err := os.Open("articles.json")
 	if err != nil {
 		log.Printf("Ошибка при открытии файла: %v", err)
 		return c.Status(500).SendString("Ошибка при чтении данных")
 	}
-	defer file.Close()
+	defer file.Close() // тут предупреждение потому что нужна обработка закрытия
 
-	// Парсим данные
+	// парсим данные
 	var articles []Article
 	if err := json.NewDecoder(file).Decode(&articles); err != nil {
 		log.Printf("Ошибка при декодировании JSON: %v", err)
 		return c.Status(500).SendString("Ошибка декодирования данных")
 	}
 
-	// Добавляем ID к каждой статье
+	// добавляем айди к каждой странице
 	for i := range articles {
 		articles[i].ID = i + 1
 	}
 
-	// Рендерим главную страницу
+	// рендер главной страницы
 	return render(c, "layout", fiber.Map{
 		"Title":    "Главная",
 		"Page":     "home",
@@ -85,10 +84,9 @@ func (ctrl *Controller) Index(c *fiber.Ctx) error {
 }
 
 func (ctrl *Controller) Gallery(c *fiber.Ctx) error {
-	// Получаем ID статьи
 	id := c.Params("id")
 
-	// Открываем JSON-файл
+	// Открываем джсон
 	file, err := os.Open("articles.json")
 	if err != nil {
 		log.Printf("Ошибка при открытии файла: %v", err)
@@ -96,17 +94,17 @@ func (ctrl *Controller) Gallery(c *fiber.Ctx) error {
 	}
 	defer file.Close()
 
-	// Парсим данные
+	// Парсим
 	var articles []Article
 	if err := json.NewDecoder(file).Decode(&articles); err != nil {
 		log.Printf("Ошибка при декодировании JSON: %v", err)
 		return c.Status(500).SendString("Ошибка декодирования данных")
 	}
 
-	// Находим статью по ID
+	// ищем статью по айди
 	for index, article := range articles {
 		if id == fmt.Sprintf("%d", index+1) {
-			// Рендерим галерею
+			// rend gall
 			return render(c, "layout", fiber.Map{
 				"Title":   "Галерея",
 				"Page":    "gallery",
@@ -115,11 +113,10 @@ func (ctrl *Controller) Gallery(c *fiber.Ctx) error {
 		}
 	}
 
-	// Если статья не найдена
 	return c.Status(404).SendString("Статья не найдена")
 }
 
-// Функция для рендера HTML
+// кастом func для обработки html т.к fiber больше не поддерживает обработку html)
 func render(c *fiber.Ctx, name string, data fiber.Map) error {
 	tmpl, err := template.ParseFiles("./views/" + name + ".html")
 	if err != nil {
@@ -127,7 +124,7 @@ func render(c *fiber.Ctx, name string, data fiber.Map) error {
 		return c.Status(500).SendString("Ошибка шаблона")
 	}
 
-	// Используем bytes.Buffer для хранения результата рендера
+	// Используем буф для хранения результата рендера
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, data)
 	if err != nil {
@@ -174,7 +171,6 @@ func main() {
 		},
 	}))
 
-	// Обработка статических файлов
 	app.Static("/img", "./img")
 
 	// Контроллеры
@@ -189,7 +185,7 @@ func main() {
 	app.Get("/signin", authController.Create)
 	app.Post("/signin", authController.Registration)
 
-	// Страницы "О нас" и "Контакты"
+	// Страницы о нас и компания
 	app.Get("/about", func(c *fiber.Ctx) error {
 		return render(c, "layout", fiber.Map{
 			"Title": "О нас",
@@ -216,6 +212,5 @@ func main() {
 	app.Put("/articles/:id", controllers.UpdateArticle)
 	app.Delete("/articles/:id", controllers.DeleteArticle)
 
-	// Запуск сервера
 	log.Fatal(app.Listen(":3000"))
 }

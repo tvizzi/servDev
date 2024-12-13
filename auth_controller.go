@@ -6,21 +6,21 @@ import (
 	"regexp"
 )
 
-// AuthController обрабатывает аутентификацию
+// обработка аутентификации
 type AuthController struct{}
 
-// Метод Create отдает страницу регистрации
+// отдает страницу регистрации через метод
 func (ctrl *AuthController) Create(c *fiber.Ctx) error {
 	csrfToken := c.Locals("csrf")
 	log.Println("CSRF Token:", csrfToken)
 
 	return render(c, "signin", fiber.Map{
 		"Title": "Регистрация",
-		"CSRF":  csrfToken, // Генерация CSRF-токена
+		"CSRF":  csrfToken, // генерируем csrf токен
 	})
 }
 
-// Метод Registration обрабатывает данные с формы
+// обработка данных с формы
 func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 	type RegistrationForm struct {
 		Name     string `json:"name"`
@@ -30,12 +30,12 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 
 	var form RegistrationForm
 
-	// Парсинг данных формы
+	// парс данных с формы
 	if err := c.BodyParser(&form); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
 	}
 
-	// Валидация данных
+	// валидация
 	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 	if form.Name == "" || form.Email == "" || form.Password == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "Все поля обязательны для заполнения"})
@@ -43,7 +43,7 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный формат email"})
 	}
 
-	// Ответ в формате JSON
+	// ответ в джсоне
 	return c.JSON(fiber.Map{
 		"message": "Регистрация успешна",
 		"data": fiber.Map{
