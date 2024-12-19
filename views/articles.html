@@ -87,7 +87,7 @@
     <p>Нет доступных статей</p>
     {{end}}
     <div class="pagination">
-        {{if gt .Page 1}}
+        {{if and .Page (gt .Page 1)}}
         <a href="/articles?page={{.PrevPage}}">Предыдущая</a>
         {{end}}
         {{if lt (mul .Page 10) .Total}}
