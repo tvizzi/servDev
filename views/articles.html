@@ -98,7 +98,7 @@
 
 <div class="form-container">
     <h2>Создать новую статью</h2>
-    <form action="/articles" method="POST">
+    <form id="create-article-form" action="/articles" method="POST">
         <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
         <input type="text" name="title" placeholder="Название" required>
         <textarea name="content" placeholder="Контент" required></textarea>
@@ -117,7 +117,7 @@
             const response = await fetch(form.action, {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-Token': formData.get('_csrf'),
+                    'X-CSRF-Token': form.querySelector('input[name="_csrf"]').value,
                 },
                 body: formData
             });
