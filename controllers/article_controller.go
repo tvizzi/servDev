@@ -39,11 +39,6 @@ func ListArticlesPage(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	var articles []models.Article
-	//result := database.DB.Limit(limit).Offset(offset).Find(&articles)
-	//if result.Error != nil {
-	//	return c.Status(500).JSON(fiber.Map{"error": "Ошибка при получении данных"})
-	//}
-
 	result := database.DB.Order("id DESC").Limit(limit).Offset(offset).Find(&articles)
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при получении данных"})

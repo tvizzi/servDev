@@ -240,6 +240,7 @@ func main() {
 		article.Content = updateData.Content
 
 		if err := database.DB.Save(&article).Error; err != nil {
+			log.Printf("Ошибка сохранения статьи: %v", err)
 			return c.Status(500).SendString("Ошибка при обновлении статьи")
 		}
 
