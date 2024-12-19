@@ -43,6 +43,11 @@
 </head>
 <body>
 <h1>Редактировать статью</h1>
+
+{{if .Message}}
+<p style="color: green; text-align: center;">{{.Message}}</p>
+{{end}}
+
 <div class="form-container">
     <form action="/articles/edit/{{.Article.ID}}" method="POST">
         <input type="hidden" name="_csrf" value="{{.CSRFToken}}">

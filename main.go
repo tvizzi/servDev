@@ -235,7 +235,12 @@ func main() {
 			return c.Status(500).SendString("Ошибка при обновлении статьи")
 		}
 
-		return c.Redirect("/articles")
+		return render(c, "edit_article", fiber.Map{
+			"Title":     "Редактировать статью",
+			"Article":   article,
+			"CSRFToken": c.Locals("csrf"),
+			"Message":   "Статья успешно обновлена",
+		})
 	})
 
 	app.Delete("/articles/:id", func(c *fiber.Ctx) error {
