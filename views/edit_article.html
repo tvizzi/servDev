@@ -46,7 +46,9 @@
 <div class="form-container">
     <form action="/articles/edit/{{.Article.ID}}" method="POST">
         <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+        <label for="title">Название</label>
         <input type="text" name="title" value="{{.Article.Title}}" required>
+        <label for="content">Контент</label>
         <textarea name="content" required>{{.Article.Content}}</textarea>
         <button type="submit">Сохранить</button>
     </form>

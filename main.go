@@ -233,8 +233,11 @@ func main() {
 		}
 
 		if err := c.BodyParser(&article); err != nil {
+			log.Printf("Ошибка парсинга формы: %v", err)
 			return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
 		}
+
+		log.Printf("Редактируем статью с ID %s. Новые данные: Title=%s, Content=%s", id, updateData.Title, updateData.Content)
 
 		article.Title = updateData.Title
 		article.Content = updateData.Content
