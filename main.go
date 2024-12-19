@@ -158,7 +158,7 @@ func main() {
 
 	// CSRF Middleware
 	app.Use(csrf.New(csrf.Config{
-		KeyLookup:      "header:X-CSRF-Token",
+		KeyLookup:      "form:_csrf,header:X-CSRF-Token",
 		CookieName:     "csrf_",
 		CookieHTTPOnly: true,
 		CookieSameSite: "Strict",
