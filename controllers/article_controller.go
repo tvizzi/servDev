@@ -48,12 +48,13 @@ func ListArticlesPage(c *fiber.Ctx) error {
 	database.DB.Model(&models.Article{}).Count(&total)
 
 	return c.Render("articles", fiber.Map{
-		"Title":    "Список новостей",
-		"Articles": articles,
-		"Page":     page,
-		"PrevPage": page - 1,
-		"NextPage": page + 1,
-		"Total":    total,
+		"Title":     "Список новостей",
+		"Articles":  articles,
+		"Page":      page,
+		"PrevPage":  page - 1,
+		"NextPage":  page + 1,
+		"Total":     total,
+		"CSRFToken": c.Locals("csrf"),
 	})
 }
 
