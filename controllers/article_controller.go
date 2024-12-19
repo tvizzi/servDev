@@ -33,13 +33,23 @@ func CreateArticle(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении статьи"})
 	}
 
+	var total int64
+	database.DB.Model(&models.Article{}).Count(&total)
+
+	page := 1
+	limit := 10
+	offset := (page - 1) * limit
+
 	var articles []models.Article
-	database.DB.Order("id DESC").Find(&articles)
+	database.DB.Order("id DESC").Limit(limit).Offset(offset).Find(&articles)
 
 	return c.Render("articles", fiber.Map{
 		"Title":     "Список новостей",
 		"Articles":  articles,
-		"Page":      1,
+		"Page":      page,
+		"PrevPage":  page - 1,
+		"NextPage":  page + 1,
+		"Total":     int(total),
 		"CSRFToken": c.Locals("csrf"),
 	})
 }
