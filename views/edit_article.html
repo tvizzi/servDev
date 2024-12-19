@@ -54,5 +54,36 @@
     </form>
 
 </div>
+<script>
+    document.getElementById('edit-form').addEventListener('submit', async function (e) {
+        e.preventDefault(); // Отключаем стандартную отправку формы
+
+        const id = {{.Article.ID}};
+        const csrfToken = document.getElementById('csrf_token').value;
+        const title = document.getElementById('title').value;
+        const content = document.getElementById('content').value;
+
+        try {
+            const response = await fetch(`/articles/edit/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'X-CSRF-Token': csrfToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title, content })
+            });
+
+            if (response.ok) {
+                window.location.href = '/articles';
+            } else {
+                const errorText = await response.text();
+                alert(`Ошибка: ${errorText}`);
+            }
+        } catch (error) {
+            console.error('Ошибка при отправке:', error);
+            alert('Произошла ошибка при отправке данных');
+        }
+    });
+</script>
 </body>
 </html>
