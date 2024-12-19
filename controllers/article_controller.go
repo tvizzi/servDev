@@ -67,7 +67,7 @@ func ListArticlesPage(c *fiber.Ctx) error {
 		"Page":      page,
 		"PrevPage":  page - 1,
 		"NextPage":  page + 1,
-		"Total":     total,
+		"Total":     int(total),
 		"CSRFToken": c.Locals("csrf"),
 	})
 }
