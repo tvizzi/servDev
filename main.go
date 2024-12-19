@@ -35,8 +35,12 @@ type TemplateEngine struct {
 }
 
 func NewTemplateEngine(pattern string) *TemplateEngine {
+	funcMap := template.FuncMap{
+		"mul": func(a, b int) int { return a * b },
+	}
+
 	return &TemplateEngine{
-		templates: template.Must(template.ParseGlob(pattern)),
+		templates: template.Must(template.New("").Funcs(funcMap).ParseGlob(pattern)),
 	}
 }
 
