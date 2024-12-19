@@ -31,7 +31,7 @@ func CreateArticle(c *fiber.Ctx) error {
 		"message": "Статья успешно создана",
 		"article": article,
 	})
-}
+} //TODO сделать так чтобы создание было не в json а просто в список + сделать так чтобы обработка csrf токена была
 
 func ListArticlesPage(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
