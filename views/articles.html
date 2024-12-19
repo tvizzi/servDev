@@ -88,14 +88,16 @@
     {{end}}
     <div class="pagination">
         {{if .Page}}
-        {{if gt .Page 1}}
-        <a href="/articles?page={{.PrevPage}}">Предыдущая</a>
-        {{end}}
-        {{if lt (mul .Page 10) .Total}}
-        <a href="/articles?page={{.NextPage}}">Следующая</a>
-        {{end}}
+            {{if gt .Page 1}}
+            <a href="/articles?page={{.PrevPage}}">Предыдущая</a>
+            {{end}}
+            {{if and (mul .Page 10) .Total (lt (mul .Page 10) .Total)}}
+            <a href="/articles?page={{.NextPage}}">Следующая</a>
+            {{end}}
         {{end}}
     </div>
+
+
 
 </div>
 

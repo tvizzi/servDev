@@ -47,6 +47,8 @@ func NewTemplateEngine(pattern string) *TemplateEngine {
 				return val
 			case int64:
 				return int(val)
+			case float64:
+				return int(val)
 			default:
 				return 0
 			}
