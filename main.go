@@ -238,11 +238,21 @@ func main() {
 		return c.Redirect("/articles")
 	})
 
+	app.Delete("/articles/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		var article models.Article
+
+		if err := database.DB.Delete(&article, id).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Статья не найдена"})
+		}
+
+		return c.SendStatus(204)
+	})
+
 	app.Get("/articles/:id", controllers.RenderArticlePage)
 	app.Get("/articles", controllers.ListArticlesPage)
 	app.Post("/articles", controllers.CreateArticle)
 	app.Put("/articles/:id", controllers.UpdateArticle)
-	app.Delete("/articles/:id", controllers.DeleteArticle)
 
 	log.Fatal(app.Listen(":3000"))
 }
