@@ -6,7 +6,6 @@ import (
 	"regexp"
 )
 
-// обработка аутентификации
 type AuthController struct{}
 
 // отдает страницу регистрации через метод

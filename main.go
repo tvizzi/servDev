@@ -18,7 +18,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// структура для статьи
 type Article struct {
 	ID           int    `json:"-"` // Не экспортируется в JSON
 	Date         string `json:"date"`
@@ -29,7 +28,6 @@ type Article struct {
 	Desc         string `json:"desc"`
 }
 
-// контроллер для обработки
 type Controller struct{}
 
 type TemplateEngine struct {
@@ -61,21 +59,18 @@ func (ctrl *Controller) Index(c *fiber.Ctx) error {
 		log.Printf("Ошибка при открытии файла: %v", err)
 		return c.Status(500).SendString("Ошибка при чтении данных")
 	}
-	defer file.Close() // тут предупреждение потому что нужна обработка закрытия
+	defer file.Close() // скипнем эту ошибку
 
-	// парсим данные
 	var articles []Article
 	if err := json.NewDecoder(file).Decode(&articles); err != nil {
 		log.Printf("Ошибка при декодировании JSON: %v", err)
 		return c.Status(500).SendString("Ошибка декодирования данных")
 	}
 
-	// добавляем айди к каждой странице
 	for i := range articles {
 		articles[i].ID = i + 1
 	}
 
-	// рендер главной страницы
 	return render(c, "layout", fiber.Map{
 		"Title":    "Главная",
 		"Page":     "home",
@@ -86,7 +81,6 @@ func (ctrl *Controller) Index(c *fiber.Ctx) error {
 func (ctrl *Controller) Gallery(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	// Открываем джсон
 	file, err := os.Open("articles.json")
 	if err != nil {
 		log.Printf("Ошибка при открытии файла: %v", err)
