@@ -227,20 +227,23 @@ func main() {
 			return c.Status(404).SendString("Статья не найдена")
 		}
 
+		var updateData struct {
+			Title   string `form:"title"`
+			Content string `form:"content"`
+		}
+
 		if err := c.BodyParser(&article); err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
 		}
+
+		article.Title = updateData.Title
+		article.Content = updateData.Content
 
 		if err := database.DB.Save(&article).Error; err != nil {
 			return c.Status(500).SendString("Ошибка при обновлении статьи")
 		}
 
-		return render(c, "edit_article", fiber.Map{
-			"Title":     "Редактировать статью",
-			"Article":   article,
-			"CSRFToken": c.Locals("csrf"),
-			"Message":   "Статья успешно обновлена",
-		})
+		return c.Redirect("/articles")
 	})
 
 	app.Delete("/articles/:id", func(c *fiber.Ctx) error {

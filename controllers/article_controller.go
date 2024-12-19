@@ -39,7 +39,12 @@ func ListArticlesPage(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	var articles []models.Article
-	result := database.DB.Limit(limit).Offset(offset).Find(&articles)
+	//result := database.DB.Limit(limit).Offset(offset).Find(&articles)
+	//if result.Error != nil {
+	//	return c.Status(500).JSON(fiber.Map{"error": "Ошибка при получении данных"})
+	//}
+
+	result := database.DB.Order("id DESC").Limit(limit).Offset(offset).Find(&articles)
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при получении данных"})
 	}
@@ -47,21 +52,26 @@ func ListArticlesPage(c *fiber.Ctx) error {
 	var total int64
 	database.DB.Model(&models.Article{}).Count(&total)
 
-	err := c.Render("articles", fiber.Map{
-		"Title":     "Список новостей",
-		"Articles":  articles,
-		"Page":      page,
-		"Total":     total,
-		"PrevPage":  page - 1,
-		"NextPage":  page + 1,
-		"CSRFToken": c.Locals("csrf"),
-	})
-	if err != nil {
-		log.Printf("Ошибка рендеринга шаблона: %v", err)
-		return c.Status(500).SendString("Ошибка рендеринга")
-	}
+	//err := c.Render("articles", fiber.Map{
+	//	"Title":     "Список новостей",
+	//	"Articles":  articles,
+	//	"Page":      page,
+	//	"Total":     total,
+	//	"PrevPage":  page - 1,
+	//	"NextPage":  page + 1,
+	//	"CSRFToken": c.Locals("csrf"),
+	//})
+	//if err != nil {
+	//	log.Printf("Ошибка рендеринга шаблона: %v", err)
+	//	return c.Status(500).SendString("Ошибка рендеринга")
+	//}
 
-	return nil
+	return c.Render("articles", fiber.Map{
+		"Title":    "Список новостей",
+		"Articles": articles,
+		"Page":     page,
+		"Total":    total,
+	})
 }
 
 func GetArticleByID(c *fiber.Ctx) error {
