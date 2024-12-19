@@ -52,24 +52,12 @@ func ListArticlesPage(c *fiber.Ctx) error {
 	var total int64
 	database.DB.Model(&models.Article{}).Count(&total)
 
-	//err := c.Render("articles", fiber.Map{
-	//	"Title":     "Список новостей",
-	//	"Articles":  articles,
-	//	"Page":      page,
-	//	"Total":     total,
-	//	"PrevPage":  page - 1,
-	//	"NextPage":  page + 1,
-	//	"CSRFToken": c.Locals("csrf"),
-	//})
-	//if err != nil {
-	//	log.Printf("Ошибка рендеринга шаблона: %v", err)
-	//	return c.Status(500).SendString("Ошибка рендеринга")
-	//}
-
 	return c.Render("articles", fiber.Map{
 		"Title":    "Список новостей",
 		"Articles": articles,
 		"Page":     page,
+		"PrevPage": page - 1,
+		"NextPage": page + 1,
 		"Total":    total,
 	})
 }
