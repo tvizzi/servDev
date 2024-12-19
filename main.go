@@ -252,12 +252,13 @@ func main() {
 
 	app.Delete("/articles/:id", func(c *fiber.Ctx) error {
 		id := c.Params("id")
-		var article models.Article
 
-		if err := database.DB.Delete(&article, id).Error; err != nil {
+		if err := database.DB.Delete(&models.Article{}, id).Error; err != nil {
+			log.Printf("Ошибка удаления статьи с ID %s: %v", id, err)
 			return c.Status(404).JSON(fiber.Map{"error": "Статья не найдена"})
 		}
 
+		log.Printf("Статья с ID %s успешно удалена", id)
 		return c.SendStatus(204)
 	})
 

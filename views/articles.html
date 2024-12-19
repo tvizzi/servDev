@@ -111,9 +111,23 @@
         fetch(`/articles/${id}`, {
             method: 'DELETE',
             headers: {
-                'X-CSRF-Token': '{{.CSRFToken}}'
+                'X-CSRF-Token': '{{.CSRFToken}}',
+                'Content-Type': 'application/json'
             }
-        }).then(() => location.reload());
+        })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    response.text().then(text => {
+                        alert("Ошибка удаления: " + text);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Ошибка запроса:", error);
+                alert("Ошибка выполнения запроса");
+            });
     }
 </script>
 </body>
