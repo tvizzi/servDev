@@ -27,9 +27,13 @@ func CreateArticle(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении статьи"})
 	}
 
-	return c.Status(201).JSON(fiber.Map{
-		"message": "Статья успешно создана",
-		"article": article,
+	var articles []models.Article
+	database.DB.Order("id DESC").Find(&articles)
+
+	return c.Render("articles", fiber.Map{
+		"Title":     "Список новостей",
+		"Articles":  articles,
+		"CSRFToken": c.Locals("csrf"),
 	})
 } //TODO сделать так чтобы создание было не в json а просто в список + сделать так чтобы обработка csrf токена была
 
