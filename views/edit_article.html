@@ -44,30 +44,30 @@
 <body>
 <h1>Редактировать статью</h1>
 <div class="form-container">
-    <form action="/articles/edit/{{.Article.ID}}" method="POST">
-        <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+    <form id="edit-form">
+        <input type="hidden" id="csrf_token" value="{{.CSRFToken}}">
         <label for="title">Название</label>
-        <input type="text" name="title" value="{{.Article.Title}}" required>
+        <input type="text" id="title" name="title" value="{{.Article.Title}}" required>
         <label for="content">Контент</label>
-        <textarea name="content" required>{{.Article.Content}}</textarea>
+        <textarea id="content" name="content" required>{{.Article.Content}}</textarea>
         <button type="submit">Сохранить</button>
     </form>
-
 </div>
+
 <script>
     document.getElementById('edit-form').addEventListener('submit', async function (e) {
         e.preventDefault(); // Отключаем стандартную отправку формы
 
-        const id = {{.Article.ID}};
+        const id = "{{.Article.ID}}";
         const csrfToken = document.getElementById('csrf_token').value;
         const title = document.getElementById('title').value;
         const content = document.getElementById('content').value;
 
         try {
             const response = await fetch(`/articles/edit/${id}`, {
-                method: 'PUT',
+                method: 'POST',
                 headers: {
-                    'X-CSRF-Token': csrfToken,
+                    'X-CSRF-Token': csrfToken, // Передаем CSRF токен в заголовке
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ title, content })
