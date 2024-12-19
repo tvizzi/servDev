@@ -107,6 +107,38 @@
 </div>
 
 <script>
+    document.getElementById('create-article-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-Token': formData.get('_csrf'),
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const updatedHTML = await response.text();
+                document.querySelector('.articles-container').innerHTML =
+                    new DOMParser().parseFromString(updatedHTML, 'text/html').querySelector('.articles-container').innerHTML;
+
+
+                form.reset();
+            } else {
+                const errorText = await response.text();
+                alert(`Ошибка создания статьи: ${errorText}`);
+            }
+        } catch (error) {
+            console.error('Ошибка при отправке:', error);
+            alert('Произошла ошибка при отправке данных');
+        }
+    });
+
     function deleteArticle(id) {
         fetch(`/articles/${id}`, {
             method: 'DELETE',
