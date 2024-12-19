@@ -90,7 +90,7 @@
         {{if and .Page (gt .Page 1)}}
         <a href="/articles?page={{.PrevPage}}">Предыдущая</a>
         {{end}}
-        {{if lt (mul .Page 10) .Total}}
+        {if lt (mul (toInt .Page) 10) (toInt .Total)}}
         <a href="/articles?page={{.NextPage}}">Следующая</a>
         {{end}}
     </div>

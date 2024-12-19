@@ -14,6 +14,7 @@ import (
 	"serv/controllers"
 	"serv/database"
 	"serv/models"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -37,6 +38,19 @@ type TemplateEngine struct {
 func NewTemplateEngine(pattern string) *TemplateEngine {
 	funcMap := template.FuncMap{
 		"mul": func(a, b int) int { return a * b },
+		"toInt": func(v interface{}) int {
+			switch val := v.(type) {
+			case string:
+				i, _ := strconv.Atoi(val)
+				return i
+			case int:
+				return val
+			case int64:
+				return int(val)
+			default:
+				return 0
+			}
+		},
 	}
 
 	return &TemplateEngine{
