@@ -39,6 +39,7 @@ func CreateArticle(c *fiber.Ctx) error {
 	return c.Render("articles", fiber.Map{
 		"Title":     "Список новостей",
 		"Articles":  articles,
+		"Page":      1,
 		"CSRFToken": c.Locals("csrf"),
 	})
 } //TODO сделать так чтобы создание было не в json а просто в список + сделать так чтобы обработка csrf токена была
