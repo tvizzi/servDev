@@ -9,6 +9,12 @@ import (
 )
 
 func CreateArticle(c *fiber.Ctx) error {
+	csrfToken := c.Locals("csrf")
+	if csrfToken == nil {
+		return c.Status(403).SendString("CSRF отсутствует")
+	}
+	log.Println("Полученый CSRF токен:", csrfToken)
+
 	var article models.Article
 
 	if err := c.BodyParser(&article); err != nil {
