@@ -115,8 +115,9 @@ func RenderArticlePage(c *fiber.Ctx) error {
 	}
 
 	err := c.Render("article", fiber.Map{
-		"Title":   "Детальная страница",
-		"Article": article,
+		"Title":     "Детальная страница",
+		"Article":   article,
+		"CSRFToken": c.Locals("csrf"),
 	})
 	if err != nil {
 		log.Printf("Ошибка рендеринга шаблона: %v", err)
