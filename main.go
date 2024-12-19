@@ -141,6 +141,20 @@ func Migrate(db *gorm.DB) {
 	fmt.Println("Migration completed")
 }
 
+func multiSourceCSRFCheck(c *fiber.Ctx) error {
+	token := c.Get("X-CSRF-Token")
+	if token == "" {
+		token = c.FormValue("_csrf")
+	}
+
+	if token == "" || token != c.Cookies("csrf_") {
+		log.Println("CSRF Error: Token missing or invalid")
+		return c.Status(fiber.StatusForbidden).SendString("Forbidden - Invalid CSRF token")
+	}
+
+	return c.Next()
+}
+
 func main() {
 	database.ConnectDB()
 	database.Migrate()
@@ -158,7 +172,7 @@ func main() {
 
 	// CSRF Middleware
 	app.Use(csrf.New(csrf.Config{
-		KeyLookup:      "header:X-CSRF-Token,form:_csrf",
+		KeyLookup:      "header:X-CSRF-Token",
 		CookieName:     "csrf_",
 		CookieHTTPOnly: true,
 		CookieSameSite: "Strict",
@@ -168,6 +182,8 @@ func main() {
 			return c.Status(fiber.StatusForbidden).SendString("Forbidden - Invalid CSRF token")
 		},
 	}))
+
+	app.Use(multiSourceCSRFCheck)
 
 	app.Static("/img", "./img")
 
