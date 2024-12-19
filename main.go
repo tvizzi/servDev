@@ -227,20 +227,20 @@ func main() {
 			return c.Status(404).SendString("Статья не найдена")
 		}
 
-		var formData struct {
+		var updateData struct {
 			Title   string `form:"title"`
 			Content string `form:"content"`
 		}
 
-		if err := c.BodyParser(&formData); err != nil {
+		if err := c.BodyParser(&updateData); err != nil {
 			log.Printf("Ошибка парсинга формы: %v", err)
 			return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
 		}
 
 		log.Printf("Редактируем статью с ID %s. Новые данные: Title=%s, Content=%s", id, updateData.Title, updateData.Content)
 
-		article.Title = formData.Title
-		article.Content = formData.Content
+		article.Title = updateData.Title
+		article.Content = updateData.Content
 
 		if err := database.DB.Save(&article).Error; err != nil {
 			log.Printf("Ошибка сохранения статьи: %v", err)
