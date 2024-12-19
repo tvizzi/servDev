@@ -200,6 +200,40 @@ func main() {
 		})
 	})
 
+	app.Get("/articles/edit/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		var article models.Article
+
+		if err := database.DB.First(&article, id).Error; err != nil {
+			return c.Status(404).SendString("Статья не найдена")
+		}
+
+		return render(c, "edit_article", fiber.Map{
+			"Title":     "Редактировать статью",
+			"Article":   article,
+			"CSRFToken": c.Locals("csrf"),
+		})
+	})
+
+	app.Post("/articles/edit/:id", func(c *fiber.Ctx) error {
+		id := c.Params("id")
+		var article models.Article
+
+		if err := database.DB.First(&article, id).Error; err != nil {
+			return c.Status(404).SendString("Статья не найдена")
+		}
+
+		if err := c.BodyParser(&article); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
+		}
+
+		if err := database.DB.Save(&article).Error; err != nil {
+			return c.Status(500).SendString("Ошибка при обновлении статьи")
+		}
+
+		return c.Redirect("/articles")
+	})
+
 	app.Get("/articles/:id", controllers.RenderArticlePage)
 	app.Get("/articles", controllers.ListArticlesPage)
 	app.Post("/articles", controllers.CreateArticle)

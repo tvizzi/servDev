@@ -5,6 +5,7 @@ import (
 	"log"
 	"serv/database"
 	"serv/models"
+	"strconv"
 )
 
 func CreateArticle(c *fiber.Ctx) error {
@@ -12,6 +13,13 @@ func CreateArticle(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&article); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
+	}
+
+	if article.Title == "" || len(article.Title) > 255 {
+		return c.Status(400).JSON(fiber.Map{"error": "Название статьи не должно быть пустой"})
+	}
+	if article.Content == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "контент статьи обязателен"})
 	}
 
 	result := database.DB.Create(&article)
@@ -26,15 +34,27 @@ func CreateArticle(c *fiber.Ctx) error {
 }
 
 func ListArticlesPage(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit := 10
+	offset := (page - 1) * limit
+
 	var articles []models.Article
-	result := database.DB.Find(&articles)
+	result := database.DB.Limit(limit).Offset(offset).Find(&articles)
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при получении данных"})
 	}
 
+	var total int64
+	database.DB.Model(&models.Article{}).Count(&total)
+
 	err := c.Render("articles", fiber.Map{
-		"Title":    "Список новостей",
-		"Articles": articles,
+		"Title":     "Список новостей",
+		"Articles":  articles,
+		"Page":      page,
+		"Total":     total,
+		"PrevPage":  page - 1,
+		"NextPage":  page + 1,
+		"CSRFToken": c.Locals("csrf"),
 	})
 	if err != nil {
 		log.Printf("Ошибка рендеринга шаблона: %v", err)
@@ -66,6 +86,14 @@ func UpdateArticle(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&article); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
+	}
+
+	if article.Title == "" || len(article.Title) > 255 {
+		return c.Status(400).JSON(fiber.Map{"error": "название статьи не должны быть пустым"})
+	}
+
+	if article.Content == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Контент статьи обязателен"})
 	}
 
 	database.DB.Save(&article)

@@ -1,0 +1,57 @@
+{{define "edit_article"}}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Редактировать статью</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #007BFF;
+            margin-top: 20px;
+        }
+        .form-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        .form-container input,
+        .form-container textarea {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-container button {
+            padding: 10px 20px;
+            color: #fff;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+<h1>Редактировать статью</h1>
+<div class="form-container">
+    <form action="/articles/edit/{{.Article.ID}}" method="POST">
+        <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+        <input type="text" name="title" value="{{.Article.Title}}" required>
+        <textarea name="content" required>{{.Article.Content}}</textarea>
+        <button type="submit">Сохранить</button>
+    </form>
+</div>
+</body>
+</html>
+{{end}}

@@ -5,48 +5,68 @@
     <meta charset="UTF-8">
     <title>{{.Title}}</title>
     <style>
-    body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f9;
-    color: #333;
-    }
-    h1 {
-    text-align: center;
-    color: #007BFF;
-    margin-top: 20px;
-    }
-    .articles-container {
-    max-width: 800px;
-    margin: 20px auto;
-    background: #fff;
-    padding: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    }
-    .article-item {
-    border-bottom: 1px solid #ddd;
-    padding: 10px 0;
-    }
-    .article-item:last-child {
-    border-bottom: none;
-    }
-    .article-title {
-    font-size: 18px;
-    color: #007BFF;
-    margin: 0;
-    }
-    .article-title a {
-    text-decoration: none;
-    }
-    .article-title a:hover {
-    text-decoration: underline;
-    }
-    .article-content {
-    font-size: 14px;
-    color: #555;
-    }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #007BFF;
+            margin-top: 20px;
+        }
+        .articles-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        .article-item {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+        .article-item:last-child {
+            border-bottom: none;
+        }
+        .article-title {
+            font-size: 18px;
+            color: #007BFF;
+            margin: 0;
+        }
+        .article-title a {
+            text-decoration: none;
+        }
+        .article-title a:hover {
+            text-decoration: underline;
+        }
+        .article-content {
+            font-size: 14px;
+            color: #555;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .pagination a {
+            margin: 0 5px;
+            padding: 5px 10px;
+            color: #007BFF;
+            text-decoration: none;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .pagination a:hover {
+            background-color: #007BFF;
+            color: #fff;
+        }
+        .form-container {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -59,12 +79,43 @@
             <a href="/articles/{{.ID}}">{{.Title}}</a>
         </h2>
         <p class="article-content">{{.Content}}</p>
+        <a href="/articles/edit/{{.ID}}">Редактировать</a> |
+        <a href="#" onclick="deleteArticle({{.ID}})">Удалить</a>
     </div>
     {{end}}
     {{else}}
     <p>Нет доступных статей</p>
     {{end}}
+    <div class="pagination">
+        {{if gt .Page 1}}
+        <a href="/articles?page={{.PrevPage}}">Предыдущая</a>
+        {{end}}
+        {{if lt (mul .Page 10) .Total}}
+        <a href="/articles?page={{.NextPage}}">Следующая</a>
+        {{end}}
+    </div>
 </div>
+
+<div class="form-container">
+    <h2>Создать новую статью</h2>
+    <form action="/articles" method="POST">
+        <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+        <input type="text" name="title" placeholder="Название" required>
+        <textarea name="content" placeholder="Контент" required></textarea>
+        <button type="submit">Создать</button>
+    </form>
+</div>
+
+<script>
+    function deleteArticle(id) {
+        fetch(`/articles/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-Token': '{{.CSRFToken}}'
+            }
+        }).then(() => location.reload());
+    }
+</script>
 </body>
 </html>
 {{end}}
