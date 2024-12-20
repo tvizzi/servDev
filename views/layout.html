@@ -35,6 +35,18 @@
         header ul li a:hover {
             text-decoration: underline;
         }
+        .auth-buttons {
+            margin-top: 10px;
+        }
+        .auth-buttons a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 10px;
+            font-weight: bold;
+        }
+        .auth-buttons a:hover {
+            text-decoration: underline;
+        }
         main {
             padding: 20px;
             max-width: 800px;
@@ -77,9 +89,16 @@
             <li><a href="/">Главная</a></li>
             <li><a href="/about">О нас</a></li>
             <li><a href="/contacts">Контакты</a></li>
-            <li><a href="/signin">Регистрация</a></li>
             <li><a href="/articles">Статьи</a></li>
         </ul>
+        <div class="auth-buttons">
+            {{if .Auth}}
+            <a href="/logout">Выйти</a>
+            {{else}}
+            <a href="/signin">Войти</a>
+            <a href="/signup">Регистрация</a>
+            {{end}}
+        </div>
     </nav>
 </header>
 

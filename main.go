@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"html/template"
 	"io"
@@ -74,12 +75,14 @@ func (t *TemplateEngine) Load() error {
 }
 
 func (ctrl *Controller) Index(c *fiber.Ctx) error {
+	auth := c.Cookies("auth_token") != ""
+
 	file, err := os.Open("articles.json")
 	if err != nil {
 		log.Printf("Ошибка при открытии файла: %v", err)
 		return c.Status(500).SendString("Ошибка при чтении данных")
 	}
-	defer file.Close() // скипнем эту ошибку
+	defer file.Close()
 
 	var articles []Article
 	if err := json.NewDecoder(file).Decode(&articles); err != nil {
@@ -94,6 +97,7 @@ func (ctrl *Controller) Index(c *fiber.Ctx) error {
 	return render(c, "layout", fiber.Map{
 		"Title":    "Главная",
 		"Page":     "home",
+		"Auth":     auth,
 		"Articles": articles,
 	})
 }
@@ -157,6 +161,14 @@ func Migrate(db *gorm.DB) {
 	fmt.Println("Migration completed")
 }
 
+func authMiddleware(c *fiber.Ctx) error {
+	authToken := c.Cookies("auth_token")
+	if authToken == "" {
+		return c.Status(401).JSON(fiber.Map{"error": "Неавторизованный доступ"})
+	}
+	return c.Next()
+}
+
 func main() {
 	database.ConnectDB()
 	database.Migrate()
@@ -192,18 +204,81 @@ func main() {
 	authController := &AuthController{}
 
 	// Маршруты
-	app.Get("/", controller.Index)
 	app.Get("/gallery/:id", controller.Gallery)
 
 	// Маршруты AuthController
-	app.Get("/signin", authController.Create)
-	app.Post("/signin", authController.Registration)
+	app.Get("/signup", func(c *fiber.Ctx) error {
+		csrfToken := c.Locals("csrf")
+		return render(c, "signin", fiber.Map{
+			"Title": "Регистрация",
+			"CSRF":  csrfToken,
+		})
+	})
 
-	// Страницы о нас и компания
+	app.Post("/signup", func(c *fiber.Ctx) error {
+		type SignupForm struct {
+			Name     string `json:"name"`
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+
+		var form SignupForm
+		if err := c.BodyParser(&form); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(form.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Ошибка сервера"})
+		}
+
+		user := models.User{
+			Name:     form.Name,
+			Email:    form.Email,
+			Password: string(hashedPassword),
+		}
+
+		if err := database.DB.Create(&user).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении пользователя"})
+		}
+
+		token, err := createAuthToken(user.ID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
+		}
+
+		c.Cookie(&fiber.Cookie{
+			Name:     "auth_token",
+			Value:    token,
+			Path:     "/",
+			HTTPOnly: true,
+		})
+
+		return c.Redirect("/")
+	})
+
+	app.Get("/signin", func(c *fiber.Ctx) error {
+		csrfToken := c.Locals("csrf")
+		return render(c, "login", fiber.Map{
+			"Title": "Авторизация",
+			"CSRF":  csrfToken,
+		})
+	})
+
+	app.Get("/", controller.Index)
+	app.Post("/signin", authController.Registration)
+	app.Post("/login", authController.Login)
+	app.Get("logout", authController.Logout)
+
+	app.Get("/protected", func(c *fiber.Ctx) error {
+		return c.SendString("Доступ разрешен")
+	})
 	app.Get("/about", func(c *fiber.Ctx) error {
+		auth := c.Cookies("auth_token") != ""
 		return render(c, "layout", fiber.Map{
 			"Title": "О нас",
 			"Page":  "about",
+			"Auth":  auth,
 		})
 	})
 
@@ -213,10 +288,13 @@ func main() {
 			"Email":   "da@gmail.com",
 			"Address": "ERFHERFHRFHERJFHEFJEHFEJ",
 		}
+
+		auth := c.Cookies("auth_token") != ""
 		return render(c, "layout", fiber.Map{
 			"Title":    "Контакты",
 			"Page":     "contacts",
 			"Contacts": contacts,
+			"Auth":     auth,
 		})
 	})
 
@@ -276,6 +354,42 @@ func main() {
 
 		log.Printf("Статья с ID %s успешно удалена", id)
 		return c.SendStatus(204)
+	})
+
+	app.Post("/login", func(c *fiber.Ctx) error {
+		type LoginForm struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+
+		var form LoginForm
+
+		if err := c.BodyParser(&form); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
+		}
+
+		var user models.User
+		if err := database.DB.Where("email = ?", form.Email).First(&user).Error; err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(form.Password)); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
+		}
+
+		token, err := createAuthToken(user.ID)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
+		}
+
+		c.Cookie(&fiber.Cookie{
+			Name:     "auth_token",
+			Value:    token,
+			Path:     "/",
+			HTTPOnly: true,
+		})
+
+		return c.JSON(fiber.Map{"message": "Успешный вход"})
 	})
 
 	app.Get("/articles/:id", controllers.RenderArticlePage)

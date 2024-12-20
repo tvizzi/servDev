@@ -1,26 +1,31 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"regexp"
+	"serv/database"
+	"serv/models"
 )
 
 type AuthController struct{}
 
-// отдает страницу регистрации через метод
 func (ctrl *AuthController) Create(c *fiber.Ctx) error {
 	csrfToken := c.Locals("csrf")
 	log.Println("CSRF Token:", csrfToken)
 
 	return render(c, "signin", fiber.Map{
 		"Title": "Регистрация",
-		"CSRF":  csrfToken, // генерируем csrf токен
+		"CSRF":  csrfToken,
 	})
 }
 
-// обработка данных с формы
 func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
+
+	log.Println("Registration POST запрос получен")
+
 	type RegistrationForm struct {
 		Name     string `json:"name"`
 		Email    string `json:"email"`
@@ -28,6 +33,7 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 	}
 
 	var form RegistrationForm
+	log.Println("Попытка парса")
 
 	// парс данных с формы
 	if err := c.BodyParser(&form); err != nil {
@@ -42,13 +48,67 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный формат email"})
 	}
 
-	// ответ в джсоне
-	return c.JSON(fiber.Map{
-		"message": "Регистрация успешна",
-		"data": fiber.Map{
-			"name":     form.Name,
-			"email":    form.Email,
-			"password": form.Password,
-		},
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(form.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Ошибка сервера"})
+	}
+
+	user := models.User{
+		Name:     form.Name,
+		Email:    form.Email,
+		Password: string(hashedPassword),
+	}
+
+	result := database.DB.Create(&user)
+	if result.Error != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении пользователя"})
+	}
+
+	return c.Redirect("/")
+}
+
+func createAuthToken(userID uint) (string, error) {
+	token := fmt.Sprintf("user_%d_token", userID)
+	return token, nil
+}
+
+func (ctrl *AuthController) Login(c *fiber.Ctx) error {
+	type LoginForm struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	var form LoginForm
+	if err := c.BodyParser(&form); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
+	}
+
+	var user models.User
+	if err := database.DB.Where("email = ?", form.Email).First(&user).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(form.Password)); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
+	}
+
+	token, err := createAuthToken(user.ID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "auth_token",
+		Value:    token,
+		Path:     "/",
+		HTTPOnly: true,
 	})
+
+	return c.Redirect("/")
+}
+
+func (ctrl *AuthController) Logout(c *fiber.Ctx) error {
+	c.ClearCookie("auth_token")
+	c.Locals("csrf", nil)
+	return c.Redirect("/")
 }
