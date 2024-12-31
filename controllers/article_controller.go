@@ -5,6 +5,7 @@ import (
 	"log"
 	"serv/database"
 	"serv/models"
+	"serv/policies"
 	"strconv"
 )
 
@@ -82,18 +83,6 @@ func ListArticlesPage(c *fiber.Ctx) error {
 	})
 }
 
-func GetArticleByID(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var article models.Article
-
-	result := database.DB.First(&article, id)
-	if result.Error != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Статья не найдена"})
-	}
-
-	return c.JSON(article)
-}
-
 func UpdateArticle(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var article models.Article
@@ -118,17 +107,6 @@ func UpdateArticle(c *fiber.Ctx) error {
 	return c.JSON(article)
 }
 
-func DeleteArticle(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var article models.Article
-
-	if err := database.DB.Delete(&article, id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Ошибка удаления"})
-	}
-
-	return c.SendStatus(204)
-}
-
 func RenderArticlePage(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var article models.Article
@@ -138,10 +116,37 @@ func RenderArticlePage(c *fiber.Ctx) error {
 		return c.Status(404).SendString("Статья не найдена")
 	}
 
+	log.Printf("Article Data: %+v", article)
+
+	var comments []models.Comment
+	if err := database.DB.Preload("User").
+		Where("article_id = ?", article.ID).Find(&comments).Error; err != nil {
+		log.Printf("Ошибка загрузки комментариев: %v", err)
+		return c.Status(500).SendString("ошибка загрузки комментариев")
+	}
+
+	auth := c.Cookies("auth_token") != ""
+
+	isModerator := false
+	if auth {
+		if userIDInterface := c.Locals("userID"); userIDInterface != nil {
+			if userID, ok := userIDInterface.(int); ok {
+				isModerator = policies.IsModeratorByID(userID)
+			} else {
+				log.Println("Ошибка: userID не является допустимым типом int")
+			}
+		} else {
+			log.Println("Ошибка: userID отсутстувет в контексте")
+		}
+	}
+
 	err := c.Render("article", fiber.Map{
-		"Title":     "Детальная страница",
-		"Article":   article,
-		"CSRFToken": c.Locals("csrf"),
+		"Title":       "Детальная страница",
+		"Article":     article,
+		"Comments":    comments,
+		"Auth":        auth,
+		"IsModerator": isModerator,
+		"CSRFToken":   c.Locals("csrf"),
 	})
 	if err != nil {
 		log.Printf("Ошибка рендеринга шаблона: %v", err)

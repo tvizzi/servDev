@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>{{.Article.Title}}</title>
+    <meta name="csrf-token" content="{{.CSRFToken}}">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -47,6 +48,25 @@
             background-color: #007BFF;
             color: #fff;
         }
+        textarea {
+            width: 100%;
+            height: 60px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -57,6 +77,80 @@
     <p><strong>Опубликовано:</strong> {{.Article.PublishedAt}}</p>
     <a href="/articles" class="back-link">Назад</a>
 </div>
+<section>
+    <h3>Комментарии</h3>
+    <ul id="comments-list">
+        {{range .Comments}}
+        <li>
+            <strong>{{.User.Name}}:</strong> {{.Content}}
+            <br>
+            <small>Дата: {{.CreatedAt}}</small>
+        </li>
+        {{else}}
+        <li>Комментариев пока нет.</li>
+        {{end}}
+    </ul>
+</section>
+{{if .Auth}}
+<form id="comment-form">
+    <textarea name="content" id="comment-content" placeholder="Введите комментарий"></textarea>
+    <button type="submit">Добавить комментарий</button>
+</form>
+{{else}}
+<p>Вы должны войти, чтобы оставить комментарий.</p>
+{{end}}
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const commentForm = document.getElementById('comment-form');
+
+        if (commentForm) {
+            commentForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                const content = document.getElementById('comment-content').value;
+
+                if (!content.trim()) {
+                    alert("Комментарий не может быть пустым.");
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/articles/{{.Article.ID}}/comments`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ content })
+                    });
+
+                    if (response.ok) {
+                        const newComment = await response.json();
+                        const commentsList = document.getElementById('comments-list');
+                        const newCommentElement = document.createElement('li');
+                        newCommentElement.innerHTML = `
+                            <strong>${newComment.comment.User.Name}:</strong> ${newComment.comment.Content}
+                            <br>
+                            <small>Дата: ${newComment.comment.CreatedAt}</small>
+                        `;
+                        commentsList.appendChild(newCommentElement);
+
+                        document.getElementById('comment-content').value = '';
+                    } else {
+                        const errorText = await response.text();
+                        alert(`Ошибка добавления комментария: ${errorText}`);
+                    }
+                } catch (error) {
+                    console.error('Ошибка при отправке комментария:', error);
+                    alert('Произошла ошибка при отправке данных');
+                }
+            });
+        }
+    });
+</script>
 </body>
 </html>
 {{end}}

@@ -7,7 +7,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 	"html/template"
 	"io"
 	"log"
@@ -15,6 +14,7 @@ import (
 	"serv/controllers"
 	"serv/database"
 	"serv/models"
+	"serv/policies"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -77,6 +77,15 @@ func (t *TemplateEngine) Load() error {
 func (ctrl *Controller) Index(c *fiber.Ctx) error {
 	auth := c.Cookies("auth_token") != ""
 
+	isModerator := false
+	if auth {
+		if userIDInterface := c.Locals("userID"); userIDInterface != nil {
+			if userID, ok := userIDInterface.(int); ok {
+				isModerator = policies.IsModeratorByID(userID)
+			}
+		}
+	}
+
 	file, err := os.Open("articles.json")
 	if err != nil {
 		log.Printf("Ошибка при открытии файла: %v", err)
@@ -95,10 +104,11 @@ func (ctrl *Controller) Index(c *fiber.Ctx) error {
 	}
 
 	return render(c, "layout", fiber.Map{
-		"Title":    "Главная",
-		"Page":     "home",
-		"Auth":     auth,
-		"Articles": articles,
+		"Title":       "Главная",
+		"Page":        "home",
+		"Auth":        auth,
+		"Articles":    articles,
+		"IsModerator": isModerator,
 	})
 }
 
@@ -153,19 +163,48 @@ func render(c *fiber.Ctx, name string, data fiber.Map) error {
 	return c.Type("html", "utf-8").Send(buf.Bytes())
 }
 
-func Migrate(db *gorm.DB) {
-	err := db.AutoMigrate(&models.Article{})
-	if err != nil {
-		log.Fatal("Migration Failed", err)
+func ModeratorMiddleware(c *fiber.Ctx) error {
+	userIDInterface := c.Locals("userID")
+	var userID uint
+
+	if id, ok := userIDInterface.(int); ok {
+		userID = uint(id)
+	} else if id, ok := userIDInterface.(uint); ok {
+		userID = id
+	} else {
+		log.Println("Ошибка: userID не может быть преобразован в uint или int")
+		return c.Status(401).JSON(fiber.Map{"error": "Неверный идентификатор пользователя"})
 	}
-	fmt.Println("Migration completed")
+
+	if userID == 0 {
+		log.Println("Ошибка: userID равен 0")
+		return c.Status(403).JSON(fiber.Map{"error": "Недостаточно прав"})
+	}
+
+	if !policies.IsModeratorByID(int(userID)) { // Обновлено для передачи userID в IsModerator
+		return c.Status(403).JSON(fiber.Map{"error": "Недостаточно прав"})
+	}
+
+	return c.Next()
 }
 
 func authMiddleware(c *fiber.Ctx) error {
 	authToken := c.Cookies("auth_token")
+	log.Printf("Полученный auth_token: %s", authToken)
+
 	if authToken == "" {
+		log.Println("auth_token отсутствует")
 		return c.Status(401).JSON(fiber.Map{"error": "Неавторизованный доступ"})
 	}
+
+	var user models.User
+	if err := database.DB.Where("auth_token = ?", authToken).First(&user).Error; err != nil {
+		log.Printf("Ошибка поиска пользователя по токену: %v", err)
+		return c.Status(401).JSON(fiber.Map{"error": "Неверный токен или пользователь не найден"})
+	}
+
+	log.Printf("Пользователь найден: ID=%d, Name=%s", user.ID, user.Name)
+	c.Locals("userID", user.ID)
 	return c.Next()
 }
 
@@ -173,6 +212,7 @@ func main() {
 	database.ConnectDB()
 	database.Migrate()
 	database.SeedArticles()
+	database.SeedRoles()
 
 	engine := NewTemplateEngine("./views/*.html")
 
@@ -298,7 +338,8 @@ func main() {
 		})
 	})
 
-	app.Get("/articles/edit/:id", func(c *fiber.Ctx) error {
+	// Для модеров
+	app.Get("/articles/edit/:id", ModeratorMiddleware, func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		var article models.Article
 
@@ -313,7 +354,7 @@ func main() {
 		})
 	})
 
-	app.Post("/articles/edit/:id", func(c *fiber.Ctx) error {
+	app.Post("/articles/edit/:id", ModeratorMiddleware, func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		var article models.Article
 
@@ -344,7 +385,7 @@ func main() {
 		return c.Redirect("/articles")
 	})
 
-	app.Delete("/articles/:id", func(c *fiber.Ctx) error {
+	app.Delete("/articles/:id", ModeratorMiddleware, func(c *fiber.Ctx) error {
 		id := c.Params("id")
 
 		if err := database.DB.Delete(&models.Article{}, id).Error; err != nil {
@@ -392,10 +433,59 @@ func main() {
 		return c.JSON(fiber.Map{"message": "Успешный вход"})
 	})
 
+	// коменты
+
+	app.Post("/articles/:id/comments", authMiddleware, func(c *fiber.Ctx) error {
+		userIDInterface := c.Locals("userID")
+		userID, ok := userIDInterface.(uint)
+		if !ok {
+			if userIDInt, ok := userIDInterface.(int); ok {
+				userID = uint(userIDInt)
+			} else {
+				log.Println("Ошибка: userID не является uint или int")
+				return c.Status(401).JSON(fiber.Map{"error": "Неверный идентификатор пользователя"})
+			}
+		}
+
+		if userID == 0 {
+			log.Println("Ошибка: userID равен 0")
+			return c.Status(403).JSON(fiber.Map{"error": "Недостаточно прав"})
+		}
+
+		if !policies.IsReaderByID(int(userID)) {
+			return c.Status(403).JSON(fiber.Map{"error": "Недостаточно прав"})
+		}
+
+		articleID := c.Params("id")
+		var article models.Article
+		if err := database.DB.First(&article, articleID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Статья не найдена"})
+		}
+
+		type CommentData struct {
+			Content string `json:"content"`
+		}
+		var commentData CommentData
+		if err := c.BodyParser(&commentData); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Неверные данные"})
+		}
+
+		comment := models.Comment{
+			Content:   commentData.Content,
+			UserID:    userID,
+			ArticleID: article.ID,
+		}
+		if err := database.DB.Create(&comment).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении комментария"})
+		}
+
+		return c.JSON(fiber.Map{"message": "Комментарий добавлен", "comment": comment})
+	})
+
 	app.Get("/articles/:id", controllers.RenderArticlePage)
 	app.Get("/articles", controllers.ListArticlesPage)
-	app.Post("/articles", controllers.CreateArticle)
-	app.Put("/articles/:id", controllers.UpdateArticle)
+	app.Post("/articles", authMiddleware, controllers.CreateArticle)
+	app.Put("/articles/:id", authMiddleware, controllers.UpdateArticle)
 
 	log.Fatal(app.Listen(":3000"))
 }

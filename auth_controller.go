@@ -64,11 +64,34 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении пользователя"})
 	}
 
+	token, err := createAuthToken(user.ID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "auth_token",
+		Value:    token,
+		Path:     "/",
+		HTTPOnly: true,
+	})
+
 	return c.Redirect("/")
 }
 
 func createAuthToken(userID uint) (string, error) {
 	token := fmt.Sprintf("user_%d_token", userID)
+
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return "", err
+	}
+
+	user.AuthToken = token
+	if err := database.DB.Save(&user).Error; err != nil {
+		return "", err
+	}
+
 	return token, nil
 }
 
@@ -92,18 +115,14 @@ func (ctrl *AuthController) Login(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
 	}
 
-	token, err := createAuthToken(user.ID)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
-	}
-
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
-		Value:    token,
+		Value:    user.AuthToken,
 		Path:     "/",
 		HTTPOnly: true,
 	})
 
+	log.Printf("Пользователь вошёл: ID=%d, Email=%s", user.ID, user.Email)
 	return c.Redirect("/")
 }
 

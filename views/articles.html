@@ -93,8 +93,10 @@
             <a href="/articles/{{.ID}}">{{.Title}}</a>
         </h2>
         <p class="article-content">{{.Content}}</p>
+        {{if $.IsModerator}}
         <a href="/articles/edit/{{.ID}}">Редактировать</a> |
         <a href="#" onclick="deleteArticle({{.ID}})">Удалить</a>
+        {{end}}
     </div>
     {{end}}
     {{else}}
@@ -113,6 +115,7 @@
 </div>
 
 <div class="form-container">
+    {{if .IsModerator}}
     <h2>Создать новую статью</h2>
     <form id="create-article-form" action="/articles" method="POST">
         <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
@@ -120,6 +123,9 @@
         <textarea name="content" placeholder="Контент" required></textarea>
         <button type="submit">Создать</button>
     </form>
+    {{else}}
+    <p>У вас нет прав для создания новых статей</p>
+    {{end}}
 </div>
 
 <script>
