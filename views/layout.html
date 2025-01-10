@@ -91,14 +91,25 @@
             <li><a href="/contacts">Контакты</a></li>
             <li><a href="/articles">Статьи</a></li>
         </ul>
-        <div class="auth-buttons">
-            {{if .Auth}}
-            <a href="/logout">Выйти</a>
-            {{else}}
+        <div class="auth-buttons" id="auth-area">
             <a href="/signin">Войти</a>
             <a href="/signup">Регистрация</a>
-            {{end}}
         </div>
+
+        <script>
+            fetch("/api/user", { credentials: "include" })
+                .then(response => response.json())
+                .then(user => {
+                    console.log("User data:", user); // Логируем ответ API
+
+                    if (user.authenticated && user.user && user.user.roles) {
+                        let authArea = document.getElementById("auth-area");
+                        authArea.innerHTML = `<span>Вы вошли как: <strong>${user.user.roles}</strong></span>
+                <a href="/logout">Выйти</a>`;
+                    }
+                })
+                .catch(err => console.error("Ошибка получения данных пользователя:", err));
+        </script>
     </nav>
 </header>
 

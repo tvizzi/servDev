@@ -75,13 +75,15 @@ func (t *TemplateEngine) Load() error {
 }
 
 func (ctrl *Controller) Index(c *fiber.Ctx) error {
-	auth := c.Cookies("auth_token") != ""
+	authToken := c.Cookies("auth_token")
+	auth := authToken != ""
 
 	isModerator := false
 	if auth {
-		if userIDInterface := c.Locals("userID"); userIDInterface != nil {
-			if userID, ok := userIDInterface.(int); ok {
-				isModerator = policies.IsModeratorByID(userID)
+		var user models.User
+		if err := database.DB.Preload("Roles").Where("auth_token = ?", authToken).First(&user).Error; err != nil {
+			if len(user.Roles) > 0 {
+				isModerator = policies.IsModeratorByID(int(user.ID))
 			}
 		}
 	}
@@ -198,7 +200,7 @@ func authMiddleware(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	if err := database.DB.Where("auth_token = ?", authToken).First(&user).Error; err != nil {
+	if err := database.DB.Preload("Roles").Where("auth_token = ?", authToken).First(&user).Error; err != nil {
 		log.Printf("Ошибка поиска пользователя по токену: %v", err)
 		return c.Status(401).JSON(fiber.Map{"error": "Неверный токен или пользователь не найден"})
 	}
@@ -431,6 +433,32 @@ func main() {
 		})
 
 		return c.JSON(fiber.Map{"message": "Успешный вход"})
+	})
+
+	app.Get("/api/user", func(c *fiber.Ctx) error {
+		authToken := c.Cookies("auth_token")
+		if authToken == "" {
+			return c.Status(401).JSON(fiber.Map{"authenticated": false})
+		}
+
+		var user models.User
+		if err := database.DB.Preload("Roles").Where("auth_token = ?", authToken).First(&user).Error; err != nil {
+			return c.Status(401).JSON(fiber.Map{"authenticated": false})
+		}
+
+		role := "user"
+		if len(user.Roles) > 0 {
+			role = user.Roles[0].Name
+		}
+
+		return c.JSON(fiber.Map{
+			"authenticated": true,
+			"user": fiber.Map{
+				"id":    user.ID,
+				"email": user.Email,
+				"roles": role,
+			},
+		})
 	})
 
 	// коменты

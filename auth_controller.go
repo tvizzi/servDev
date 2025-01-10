@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"regexp"
 	"serv/database"
 	"serv/models"
+	"time"
 )
 
 type AuthController struct{}
@@ -107,7 +109,7 @@ func (ctrl *AuthController) Login(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	if err := database.DB.Where("email = ?", form.Email).First(&user).Error; err != nil {
+	if err := database.DB.Preload("Roles").Where("email = ?", form.Email).First(&user).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
 	}
 
@@ -115,14 +117,28 @@ func (ctrl *AuthController) Login(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
 	}
 
+	newToken := uuid.New().String()
+	user.AuthToken = newToken
+
+	if err := database.DB.Save(&user).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Ошибка сервера"})
+	}
+
+	role := "reader"
+	if len(user.Roles) > 0 {
+		role = user.Roles[0].Name
+	}
+
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
-		Value:    user.AuthToken,
+		Value:    newToken,
 		Path:     "/",
 		HTTPOnly: true,
+		Expires:  time.Now().Add(24 * time.Hour),
 	})
 
-	log.Printf("Пользователь вошёл: ID=%d, Email=%s", user.ID, user.Email)
+	log.Printf("Пользователь вошёл: ID=%d, Email=%s, Role=%s", user.ID, user.Email, role)
+
 	return c.Redirect("/")
 }
 

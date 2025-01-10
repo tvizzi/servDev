@@ -56,6 +56,21 @@ func CreateArticle(c *fiber.Ctx) error {
 }
 
 func ListArticlesPage(c *fiber.Ctx) error {
+	authToken := c.Cookies("auth_token")
+	auth := authToken != ""
+
+	isModerator := false
+	if auth {
+		var user models.User
+		if err := database.DB.Preload("Roles").Where("auth_token = ?", authToken).First(&user).Error; err == nil {
+			if len(user.Roles) > 0 {
+				isModerator = policies.IsModeratorByID(int(user.ID))
+			}
+		}
+	}
+
+	log.Printf("User Moderator Status: %v", isModerator)
+
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil {
 		page = 1
@@ -73,13 +88,14 @@ func ListArticlesPage(c *fiber.Ctx) error {
 	database.DB.Model(&models.Article{}).Count(&total)
 
 	return c.Render("articles", fiber.Map{
-		"Title":     "Список новостей",
-		"Articles":  articles,
-		"Page":      page,
-		"PrevPage":  page - 1,
-		"NextPage":  page + 1,
-		"Total":     int(total),
-		"CSRFToken": c.Locals("csrf"),
+		"Title":       "Список новостей",
+		"Articles":    articles,
+		"Page":        page,
+		"PrevPage":    page - 1,
+		"NextPage":    page + 1,
+		"Total":       int(total),
+		"CSRFToken":   c.Locals("csrf"),
+		"IsModerator": isModerator,
 	})
 }
 

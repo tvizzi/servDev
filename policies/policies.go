@@ -29,30 +29,6 @@ func getAuthenticatesUser(c *fiber.Ctx) *models.User {
 	return &user
 }
 
-func IsModerator(c *fiber.Ctx) bool {
-	user := getAuthenticatesUser(c)
-	for _, role := range user.Roles {
-		if role.Name == "moderator" {
-			return true
-		}
-	}
-	return false
-}
-
-func IsReader(c *fiber.Ctx) bool {
-	user := getAuthenticatesUser(c)
-	if user == nil {
-		return false
-	}
-
-	for _, role := range user.Roles {
-		if role.Name == "reader" {
-			return true
-		}
-	}
-	return false
-}
-
 func IsModeratorByID(userID int) bool {
 	var user models.User
 	if err := database.DB.Preload("Roles").First(&user, userID).Error; err != nil {
