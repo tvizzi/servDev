@@ -1,11 +1,31 @@
-FROM golang:1.22.4
+FROM golang:1.22.4 AS builder
 
 WORKDIR /app
 
-COPY . .
+COPY go.mod go.sum ./
 
 RUN go mod download
 
-EXPOSE 3000
+COPY . .
+COPY .env .
+COPY views ./views
+COPY articles.json .
+COPY img ./img
 
-CMD ["go", "run", "main.go", "auth_controller.go"]
+RUN CGO_ENABLED=0 GOOS=linux go build -o servDev ./main.go
+
+FROM alpine:latest
+
+WORKDIR /root/
+
+COPY --from=builder /app/servDev .
+COPY --from=builder /app/.env .
+COPY --from=builder /app/views ./views
+COPY --from=builder /app/articles.json .
+COPY --from=builder /app/img ./img
+
+RUN apk add --no-cache ca-certificates
+
+EXPOSE 8080
+
+CMD ["./servDev"]

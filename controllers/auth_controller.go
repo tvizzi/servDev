@@ -1,4 +1,4 @@
-package main
+package controllers
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ func (ctrl *AuthController) Create(c *fiber.Ctx) error {
 	csrfToken := c.Locals("csrf")
 	log.Println("CSRF Token:", csrfToken)
 
-	return render(c, "signin", fiber.Map{
+	return c.Render("signin", fiber.Map{
 		"Title": "Регистрация",
 		"CSRF":  csrfToken,
 	})
@@ -66,7 +66,7 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении пользователя"})
 	}
 
-	token, err := createAuthToken(user.ID)
+	token, err := CreateAuthToken(user.ID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
 	}
@@ -81,7 +81,7 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 	return c.Redirect("/")
 }
 
-func createAuthToken(userID uint) (string, error) {
+func CreateAuthToken(userID uint) (string, error) {
 	token := fmt.Sprintf("user_%d_token", userID)
 
 	var user models.User

@@ -16,6 +16,7 @@ import (
 	"serv/models"
 	"serv/policies"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -169,21 +170,28 @@ func ModeratorMiddleware(c *fiber.Ctx) error {
 	userIDInterface := c.Locals("userID")
 	var userID uint
 
-	if id, ok := userIDInterface.(int); ok {
-		userID = uint(id)
-	} else if id, ok := userIDInterface.(uint); ok {
-		userID = id
-	} else {
-		log.Println("Ошибка: userID не может быть преобразован в uint или int")
+	// Логирование для отладки
+	log.Printf("Тип userIDInterface: %T, значение: %v", userIDInterface, userIDInterface)
+
+	switch v := userIDInterface.(type) {
+	case int:
+		userID = uint(v)
+	case uint:
+		userID = v
+	case int64:
+		userID = uint(v)
+	case float64:
+		userID = uint(v)
+	default:
+		log.Println("Ошибка: userID имеет неверный тип")
 		return c.Status(401).JSON(fiber.Map{"error": "Неверный идентификатор пользователя"})
 	}
 
 	if userID == 0 {
-		log.Println("Ошибка: userID равен 0")
 		return c.Status(403).JSON(fiber.Map{"error": "Недостаточно прав"})
 	}
 
-	if !policies.IsModeratorByID(int(userID)) { // Обновлено для передачи userID в IsModerator
+	if !policies.IsModeratorByID(int(userID)) {
 		return c.Status(403).JSON(fiber.Map{"error": "Недостаточно прав"})
 	}
 
@@ -212,6 +220,7 @@ func authMiddleware(c *fiber.Ctx) error {
 
 func main() {
 	database.ConnectDB()
+	time.Sleep(5 * 10)
 	database.Migrate()
 	database.SeedArticles()
 	database.SeedRoles()
@@ -243,7 +252,7 @@ func main() {
 
 	// Контроллеры
 	controller := &Controller{}
-	authController := &AuthController{}
+	authController := &controllers.AuthController{}
 
 	// Маршруты
 	app.Get("/gallery/:id", controller.Gallery)
@@ -284,7 +293,7 @@ func main() {
 			return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении пользователя"})
 		}
 
-		token, err := createAuthToken(user.ID)
+		token, err := controllers.CreateAuthToken(user.ID)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
 		}
@@ -341,7 +350,7 @@ func main() {
 	})
 
 	// Для модеров
-	app.Get("/articles/edit/:id", ModeratorMiddleware, func(c *fiber.Ctx) error {
+	app.Get("/articles/edit/:id", authMiddleware, ModeratorMiddleware, func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		var article models.Article
 
@@ -356,7 +365,7 @@ func main() {
 		})
 	})
 
-	app.Post("/articles/edit/:id", ModeratorMiddleware, func(c *fiber.Ctx) error {
+	app.Post("/articles/edit/:id", authMiddleware, ModeratorMiddleware, func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		var article models.Article
 
@@ -387,7 +396,7 @@ func main() {
 		return c.Redirect("/articles")
 	})
 
-	app.Delete("/articles/:id", ModeratorMiddleware, func(c *fiber.Ctx) error {
+	app.Delete("/articles/:id", authMiddleware, ModeratorMiddleware, func(c *fiber.Ctx) error {
 		id := c.Params("id")
 
 		if err := database.DB.Delete(&models.Article{}, id).Error; err != nil {
@@ -420,7 +429,7 @@ func main() {
 			return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
 		}
 
-		token, err := createAuthToken(user.ID)
+		token, err := controllers.CreateAuthToken(user.ID)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
 		}
