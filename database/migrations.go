@@ -6,9 +6,19 @@ import (
 )
 
 func Migrate() {
-	err := DB.AutoMigrate(&models.Article{}, &models.User{}, &models.Role{}, &models.Comment{})
+	DB.Migrator().DropTable("roles", "user_roles")
+
+	err := DB.AutoMigrate(&models.Article{}, &models.User{}, &models.Comment{})
 	if err != nil {
 		log.Fatalf("Ошибка миграции: %v", err)
+	}
+
+	if !DB.Migrator().HasColumn(&models.User{}, "AuthToken") {
+		err = DB.Migrator().AddColumn(&models.User{}, "AuthToken")
+		if err != nil {
+			log.Fatalf("Ошибка добавления колонки AuthToken: %v", err)
+		}
+		log.Println("Колонка AuthToken успешно добавлена")
 	}
 
 	if !DB.Migrator().HasColumn(&models.User{}, "AuthToken") {

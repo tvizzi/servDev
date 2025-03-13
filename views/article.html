@@ -128,15 +128,15 @@
                     });
 
                     if (response.ok) {
-                        const newComment = await response.json();
-                        const commentsList = document.getElementById('comments-list');
-                        const newCommentElement = document.createElement('li');
-                        newCommentElement.innerHTML = `
-                            <strong>${newComment.comment.User.Name}:</strong> ${newComment.comment.Content}
-                            <br>
-                            <small>Дата: ${newComment.comment.CreatedAt}</small>
-                        `;
-                        commentsList.appendChild(newCommentElement);
+                        // Запрашиваем обновлённый список комментариев
+                        const commentsResponse = await fetch(`/articles/{{.Article.ID}}`, {
+                            headers: {
+                                'Accept': 'text/html'
+                            }
+                        });
+                        const updatedHTML = await commentsResponse.text();
+                        document.querySelector('#comments-list').innerHTML =
+                            new DOMParser().parseFromString(updatedHTML, 'text/html').querySelector('#comments-list').innerHTML;
 
                         document.getElementById('comment-content').value = '';
                     } else {

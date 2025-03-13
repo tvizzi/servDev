@@ -82,10 +82,8 @@ func (ctrl *Controller) Index(c *fiber.Ctx) error {
 	isModerator := false
 	if auth {
 		var user models.User
-		if err := database.DB.Preload("Roles").Where("auth_token = ?", authToken).First(&user).Error; err != nil {
-			if len(user.Roles) > 0 {
-				isModerator = policies.IsModeratorByID(int(user.ID))
-			}
+		if err := database.DB.Where("auth_token = ?", authToken).First(&user).Error; err == nil {
+			isModerator = user.Role == "moderator"
 		}
 	}
 
@@ -125,17 +123,14 @@ func (ctrl *Controller) Gallery(c *fiber.Ctx) error {
 	}
 	defer file.Close()
 
-	// Парсим
 	var articles []Article
 	if err := json.NewDecoder(file).Decode(&articles); err != nil {
 		log.Printf("Ошибка при декодировании JSON: %v", err)
 		return c.Status(500).SendString("Ошибка декодирования данных")
 	}
 
-	// ищем статью по айди
 	for index, article := range articles {
 		if id == fmt.Sprintf("%d", index+1) {
-			// rend gall
 			return render(c, "layout", fiber.Map{
 				"Title":   "Галерея",
 				"Page":    "gallery",
@@ -147,7 +142,6 @@ func (ctrl *Controller) Gallery(c *fiber.Ctx) error {
 	return c.Status(404).SendString("Статья не найдена")
 }
 
-// кастом func для обработки html т.к fiber больше не поддерживает обработку html)
 func render(c *fiber.Ctx, name string, data fiber.Map) error {
 	tmpl, err := template.ParseFiles("./views/" + name + ".html")
 	if err != nil {
@@ -155,7 +149,6 @@ func render(c *fiber.Ctx, name string, data fiber.Map) error {
 		return c.Status(500).SendString("Ошибка шаблона")
 	}
 
-	// Используем буф для хранения результата рендера
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, data)
 	if err != nil {
@@ -166,23 +159,27 @@ func render(c *fiber.Ctx, name string, data fiber.Map) error {
 	return c.Type("html", "utf-8").Send(buf.Bytes())
 }
 
+func authMiddleware(c *fiber.Ctx) error {
+	authToken := c.Cookies("auth_token")
+	if authToken == "" {
+		log.Println("auth_token отсутствует")
+		return c.Status(401).JSON(fiber.Map{"error": "Неавторизованный доступ"})
+	}
+
+	var user models.User
+	if err := database.DB.Where("auth_token = ?", authToken).First(&user).Error; err != nil {
+		log.Printf("Ошибка поиска пользователя по токену: %v", err)
+		return c.Status(401).JSON(fiber.Map{"error": "Неверный токен или пользователь не найден"})
+	}
+
+	c.Locals("userID", user.ID)
+	return c.Next()
+}
+
 func ModeratorMiddleware(c *fiber.Ctx) error {
 	userIDInterface := c.Locals("userID")
-	var userID uint
-
-	// Логирование для отладки
-	log.Printf("Тип userIDInterface: %T, значение: %v", userIDInterface, userIDInterface)
-
-	switch v := userIDInterface.(type) {
-	case int:
-		userID = uint(v)
-	case uint:
-		userID = v
-	case int64:
-		userID = uint(v)
-	case float64:
-		userID = uint(v)
-	default:
+	userID, ok := userIDInterface.(uint)
+	if !ok {
 		log.Println("Ошибка: userID имеет неверный тип")
 		return c.Status(401).JSON(fiber.Map{"error": "Неверный идентификатор пользователя"})
 	}
@@ -198,26 +195,6 @@ func ModeratorMiddleware(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-func authMiddleware(c *fiber.Ctx) error {
-	authToken := c.Cookies("auth_token")
-	log.Printf("Полученный auth_token: %s", authToken)
-
-	if authToken == "" {
-		log.Println("auth_token отсутствует")
-		return c.Status(401).JSON(fiber.Map{"error": "Неавторизованный доступ"})
-	}
-
-	var user models.User
-	if err := database.DB.Preload("Roles").Where("auth_token = ?", authToken).First(&user).Error; err != nil {
-		log.Printf("Ошибка поиска пользователя по токену: %v", err)
-		return c.Status(401).JSON(fiber.Map{"error": "Неверный токен или пользователь не найден"})
-	}
-
-	log.Printf("Пользователь найден: ID=%d, Name=%s", user.ID, user.Name)
-	c.Locals("userID", user.ID)
-	return c.Next()
-}
-
 func main() {
 	database.ConnectDB()
 	time.Sleep(5 * 10)
@@ -227,15 +204,12 @@ func main() {
 
 	engine := NewTemplateEngine("./views/*.html")
 
-	// Создаем приложение Fiber
 	app := fiber.New(fiber.Config{
 		Views: engine,
 	})
 
-	// Middleware для логов
 	app.Use(logger.New())
 
-	// CSRF Middleware
 	app.Use(csrf.New(csrf.Config{
 		KeyLookup:      "header:X-CSRF-Token",
 		CookieName:     "csrf_",
@@ -250,14 +224,11 @@ func main() {
 
 	app.Static("/img", "./img")
 
-	// Контроллеры
 	controller := &Controller{}
 	authController := &controllers.AuthController{}
 
-	// Маршруты
 	app.Get("/gallery/:id", controller.Gallery)
 
-	// Маршруты AuthController
 	app.Get("/signup", func(c *fiber.Ctx) error {
 		csrfToken := c.Locals("csrf")
 		return render(c, "signin", fiber.Map{
@@ -278,6 +249,10 @@ func main() {
 			return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
 		}
 
+		if form.Name == "" || form.Email == "" || form.Password == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "Все поля обязательны"})
+		}
+
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(form.Password), bcrypt.DefaultCost)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Ошибка сервера"})
@@ -287,6 +262,7 @@ func main() {
 			Name:     form.Name,
 			Email:    form.Email,
 			Password: string(hashedPassword),
+			Role:     "reader",
 		}
 
 		if err := database.DB.Create(&user).Error; err != nil {
@@ -349,7 +325,6 @@ func main() {
 		})
 	})
 
-	// Для модеров
 	app.Get("/articles/edit/:id", authMiddleware, ModeratorMiddleware, func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		var article models.Article
@@ -451,13 +426,13 @@ func main() {
 		}
 
 		var user models.User
-		if err := database.DB.Preload("Roles").Where("auth_token = ?", authToken).First(&user).Error; err != nil {
+		if err := database.DB.Where("auth_token = ?", authToken).First(&user).Error; err != nil {
 			return c.Status(401).JSON(fiber.Map{"authenticated": false})
 		}
 
-		role := "user"
-		if len(user.Roles) > 0 {
-			role = user.Roles[0].Name
+		role := user.Role
+		if role == "" {
+			role = "user"
 		}
 
 		return c.JSON(fiber.Map{
@@ -470,26 +445,9 @@ func main() {
 		})
 	})
 
-	// коменты
-
 	app.Post("/articles/:id/comments", authMiddleware, func(c *fiber.Ctx) error {
-		userIDInterface := c.Locals("userID")
-		userID, ok := userIDInterface.(uint)
-		if !ok {
-			if userIDInt, ok := userIDInterface.(int); ok {
-				userID = uint(userIDInt)
-			} else {
-				log.Println("Ошибка: userID не является uint или int")
-				return c.Status(401).JSON(fiber.Map{"error": "Неверный идентификатор пользователя"})
-			}
-		}
-
+		userID := c.Locals("userID").(uint)
 		if userID == 0 {
-			log.Println("Ошибка: userID равен 0")
-			return c.Status(403).JSON(fiber.Map{"error": "Недостаточно прав"})
-		}
-
-		if !policies.IsReaderByID(int(userID)) {
 			return c.Status(403).JSON(fiber.Map{"error": "Недостаточно прав"})
 		}
 

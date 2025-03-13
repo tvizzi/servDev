@@ -145,10 +145,15 @@
             });
 
             if (response.ok) {
-                const updatedHTML = await response.text();
+                // Запрашиваем обновлённый список статей
+                const articlesResponse = await fetch('/articles?page=1', {
+                    headers: {
+                        'Accept': 'text/html'
+                    }
+                });
+                const updatedHTML = await articlesResponse.text();
                 document.querySelector('.articles-container').innerHTML =
                     new DOMParser().parseFromString(updatedHTML, 'text/html').querySelector('.articles-container').innerHTML;
-
 
                 form.reset();
             } else {
@@ -161,27 +166,34 @@
         }
     });
 
-    function deleteArticle(id) {
-        fetch(`/articles/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-Token': '{{.CSRFToken}}',
-                'Content-Type': 'application/json'
-            }
-        })
-            .then(response => {
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    response.text().then(text => {
-                        alert("Ошибка удаления: " + text);
-                    });
+    async function deleteArticle(id) {
+        try {
+            const response = await fetch(`/articles/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': '{{.CSRFToken}}',
+                    'Content-Type': 'application/json'
                 }
-            })
-            .catch(error => {
-                console.error("Ошибка запроса:", error);
-                alert("Ошибка выполнения запроса");
             });
+
+            if (response.ok) {
+                // Запрашиваем обновлённый список статей
+                const articlesResponse = await fetch('/articles?page=1', {
+                    headers: {
+                        'Accept': 'text/html'
+                    }
+                });
+                const updatedHTML = await articlesResponse.text();
+                document.querySelector('.articles-container').innerHTML =
+                    new DOMParser().parseFromString(updatedHTML, 'text/html').querySelector('.articles-container').innerHTML;
+            } else {
+                const errorText = await response.text();
+                alert(`Ошибка удаления: ${errorText}`);
+            }
+        } catch (error) {
+            console.error("Ошибка запроса:", error);
+            alert("Ошибка выполнения запроса");
+        }
     }
 </script>
 </body>

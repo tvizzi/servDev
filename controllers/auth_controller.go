@@ -3,7 +3,6 @@ package controllers
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"regexp"
@@ -25,7 +24,6 @@ func (ctrl *AuthController) Create(c *fiber.Ctx) error {
 }
 
 func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
-
 	log.Println("Registration POST запрос получен")
 
 	type RegistrationForm struct {
@@ -97,7 +95,7 @@ func CreateAuthToken(userID uint) (string, error) {
 	return token, nil
 }
 
-func (ctrl *AuthController) Login(c *fiber.Ctx) error {
+func (a *AuthController) Login(c *fiber.Ctx) error {
 	type LoginForm struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -109,7 +107,7 @@ func (ctrl *AuthController) Login(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	if err := database.DB.Preload("Roles").Where("email = ?", form.Email).First(&user).Error; err != nil {
+	if err := database.DB.Where("email = ?", form.Email).First(&user).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
 	}
 
@@ -117,29 +115,20 @@ func (ctrl *AuthController) Login(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный email или пароль"})
 	}
 
-	newToken := uuid.New().String()
-	user.AuthToken = newToken
-
-	if err := database.DB.Save(&user).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Ошибка сервера"})
-	}
-
-	role := "reader"
-	if len(user.Roles) > 0 {
-		role = user.Roles[0].Name
+	token, err := CreateAuthToken(user.ID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Ошибка создания токена"})
 	}
 
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
-		Value:    newToken,
+		Value:    token,
 		Path:     "/",
 		HTTPOnly: true,
 		Expires:  time.Now().Add(24 * time.Hour),
 	})
 
-	log.Printf("Пользователь вошёл: ID=%d, Email=%s, Role=%s", user.ID, user.Email, role)
-
-	return c.Redirect("/")
+	return c.JSON(fiber.Map{"message": "Успешный вход"})
 }
 
 func (ctrl *AuthController) Logout(c *fiber.Ctx) error {

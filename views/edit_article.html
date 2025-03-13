@@ -56,7 +56,7 @@
 
 <script>
     document.getElementById('edit-form').addEventListener('submit', async function (e) {
-        e.preventDefault(); // Отключаем стандартную отправку формы
+        e.preventDefault();
 
         const id = "{{.Article.ID}}";
         const csrfToken = document.getElementById('csrf_token').value;
@@ -67,14 +67,22 @@
             const response = await fetch(`/articles/edit/${id}`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-Token': csrfToken, // Передаем CSRF токен в заголовке
+                    'X-CSRF-Token': csrfToken,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ title, content })
             });
 
             if (response.ok) {
-                window.location.href = '/articles';
+                // Запрашиваем обновлённую страницу статьи
+                const articleResponse = await fetch(`/articles/${id}`, {
+                    headers: {
+                        'Accept': 'text/html'
+                    }
+                });
+                const updatedHTML = await articleResponse.text();
+                document.body.innerHTML =
+                    new DOMParser().parseFromString(updatedHTML, 'text/html').body.innerHTML;
             } else {
                 const errorText = await response.text();
                 alert(`Ошибка: ${errorText}`);

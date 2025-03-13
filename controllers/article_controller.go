@@ -4,8 +4,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"log"
 	"serv/database"
+	"serv/mail"
 	"serv/models"
-	"serv/policies"
 	"strconv"
 )
 
@@ -17,7 +17,6 @@ func CreateArticle(c *fiber.Ctx) error {
 	log.Println("Полученый CSRF токен:", csrfToken)
 
 	var article models.Article
-
 	if err := c.BodyParser(&article); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
 	}
@@ -32,6 +31,24 @@ func CreateArticle(c *fiber.Ctx) error {
 	result := database.DB.Create(&article)
 	if result.Error != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении статьи"})
+	}
+
+	// Отправка уведомлений только читателям
+	mailer := mail.NewMailer()
+	var readers []models.User
+	if err := database.DB.Where("role = ?", "reader").Find(&readers).Error; err == nil {
+		for _, reader := range readers {
+			if reader.Email != "" {
+				err := mailer.SendNewArticleNotification(&article, reader.Email)
+				if err != nil {
+					log.Printf("Ошибка отправки уведомления на %s: %v", reader.Email, err)
+				} else {
+					log.Printf("Уведомление отправлено на email: %s", reader.Email)
+				}
+			}
+		}
+	} else {
+		log.Printf("Читатели не найдены: %v", err)
 	}
 
 	var total int64
@@ -62,10 +79,10 @@ func ListArticlesPage(c *fiber.Ctx) error {
 	isModerator := false
 	if auth {
 		var user models.User
-		if err := database.DB.Preload("Roles").Where("auth_token = ?", authToken).First(&user).Error; err == nil {
-			if len(user.Roles) > 0 {
-				isModerator = policies.IsModeratorByID(int(user.ID))
-			}
+		// Убираем Preload("Roles"), так как поле Roles больше не существует
+		if err := database.DB.Where("auth_token = ?", authToken).First(&user).Error; err == nil {
+			// Проверяем роль напрямую через поле Role
+			isModerator = user.Role == "moderator"
 		}
 	}
 
@@ -124,48 +141,64 @@ func UpdateArticle(c *fiber.Ctx) error {
 }
 
 func RenderArticlePage(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var article models.Article
+	// Преобразуем ID из строки в число
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		log.Printf("Неверный ID статьи: %v", err)
+		return c.Status(400).SendString("Неверный ID статьи")
+	}
 
-	result := database.DB.First(&article, id)
-	if result.Error != nil {
+	// Загружаем статью
+	var article models.Article
+	if err := database.DB.First(&article, id).Error; err != nil {
+		log.Printf("Статья с ID %d не найдена: %v", id, err)
 		return c.Status(404).SendString("Статья не найдена")
 	}
 
-	log.Printf("Article Data: %+v", article)
-
+	// Загружаем комментарии с подгрузкой пользователя
 	var comments []models.Comment
-	if err := database.DB.Preload("User").
-		Where("article_id = ?", article.ID).Find(&comments).Error; err != nil {
-		log.Printf("Ошибка загрузки комментариев: %v", err)
-		return c.Status(500).SendString("ошибка загрузки комментариев")
+	if err := database.DB.Preload("User").Where("article_id = ?", article.ID).Find(&comments).Error; err != nil {
+		log.Printf("Ошибка загрузки комментариев для статьи ID %d: %v", id, err)
+		return c.Status(500).SendString("Ошибка загрузки комментариев")
+	}
+	log.Printf("Загружено комментариев для статьи ID %d: %d", id, len(comments))
+	for _, comment := range comments {
+		log.Printf("Комментарий ID=%d, UserID=%d, UserName=%s", comment.ID, comment.UserID, comment.User.Name)
 	}
 
-	auth := c.Cookies("auth_token") != ""
-
+	// Проверяем авторизацию
+	authToken := c.Cookies("auth_token")
+	auth := authToken != ""
 	isModerator := false
+	var currentUser models.User
+
 	if auth {
-		if userIDInterface := c.Locals("userID"); userIDInterface != nil {
-			if userID, ok := userIDInterface.(int); ok {
-				isModerator = policies.IsModeratorByID(userID)
-			} else {
-				log.Println("Ошибка: userID не является допустимым типом int")
-			}
+		// Исправляем опечатку: используем currentUser вместо ¤tUser
+		if err := database.DB.Where("auth_token = ?", authToken).First(&currentUser).Error; err != nil {
+			log.Printf("Ошибка при получении пользователя по auth_token %s: %v", authToken, err)
+			// Если пользователь не найден, сбрасываем auth, чтобы считать его неавторизованным
+			auth = false
 		} else {
-			log.Println("Ошибка: userID отсутстувет в контексте")
+			// Проверяем роль
+			isModerator = currentUser.Role == "moderator"
+			log.Printf("Пользователь авторизован: Email=%s, Role=%s", currentUser.Email, currentUser.Role)
 		}
+	} else {
+		log.Println("Пользователь не авторизован: auth_token отсутствует")
 	}
 
-	err := c.Render("article", fiber.Map{
+	// Рендерим шаблон
+	err = c.Render("article", fiber.Map{
 		"Title":       "Детальная страница",
 		"Article":     article,
 		"Comments":    comments,
 		"Auth":        auth,
 		"IsModerator": isModerator,
 		"CSRFToken":   c.Locals("csrf"),
+		"CurrentUser": currentUser,
 	})
 	if err != nil {
-		log.Printf("Ошибка рендеринга шаблона: %v", err)
+		log.Printf("Ошибка рендеринга шаблона для статьи ID %d: %v", id, err)
 		return c.Status(500).SendString("Ошибка рендеринга")
 	}
 
