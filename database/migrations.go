@@ -6,9 +6,9 @@ import (
 )
 
 func Migrate() {
-	DB.Migrator().DropTable("roles", "user_roles")
+	DB.Migrator().DropTable("roles", "user_roles", &models.Job{})
 
-	err := DB.AutoMigrate(&models.Article{}, &models.User{}, &models.Comment{})
+	err := DB.AutoMigrate(&models.Article{}, &models.User{}, &models.Comment{}, &models.Job{})
 	if err != nil {
 		log.Fatalf("Ошибка миграции: %v", err)
 	}

@@ -4,7 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"log"
 	"serv/database"
-	"serv/mail"
+	"serv/jobs"
 	"serv/models"
 	"strconv"
 )
@@ -33,17 +33,19 @@ func CreateArticle(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Ошибка при сохранении статьи"})
 	}
 
-	// Отправка уведомлений только читателям
-	mailer := mail.NewMailer()
+	// Переносим отправку уведомлений в очередь
 	var readers []models.User
 	if err := database.DB.Where("role = ?", "reader").Find(&readers).Error; err == nil {
 		for _, reader := range readers {
 			if reader.Email != "" {
-				err := mailer.SendNewArticleNotification(&article, reader.Email)
-				if err != nil {
-					log.Printf("Ошибка отправки уведомления на %s: %v", reader.Email, err)
+				job := jobs.VeryLongJob{
+					ArticleID: article.ID,
+					Email:     reader.Email,
+				}
+				if err := job.Dispatch(); err != nil {
+					log.Printf("Ошибка добавления задания в очередь для %s: %v", reader.Email, err)
 				} else {
-					log.Printf("Уведомление отправлено на email: %s", reader.Email)
+					log.Printf("Задание на отправку уведомления добавлено в очередь для %s", reader.Email)
 				}
 			}
 		}

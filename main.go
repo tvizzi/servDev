@@ -13,6 +13,7 @@ import (
 	"os"
 	"serv/controllers"
 	"serv/database"
+	"serv/jobs"
 	"serv/models"
 	"serv/policies"
 	"strconv"
@@ -195,12 +196,52 @@ func ModeratorMiddleware(c *fiber.Ctx) error {
 	return c.Next()
 }
 
+func ProcessQueue() {
+	for {
+		var job models.Job
+		if err := database.DB.Where("reserved_at IS NULL AND available_at <= ?", time.Now()).
+			Order("id ASC").First(&job).Error; err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		job.ReservedAt = new(time.Time)
+		*job.ReservedAt = time.Now()
+		job.Attempts++
+		database.DB.Save(&job)
+
+		var veryLongJob jobs.VeryLongJob
+		if err := json.Unmarshal([]byte(job.Payload), &veryLongJob); err != nil {
+			log.Printf("Ошибка декодирования задания ID %d: %v", job.ID, err)
+			database.DB.Delete(&job)
+			continue
+		}
+
+		if err := veryLongJob.Handle(); err != nil {
+			log.Printf("Ошибка выполнения задания ID %d: %v", job.ID, err)
+			if job.Attempts >= 3 {
+				database.DB.Delete(&job)
+				log.Printf("Задание ID %d удалено после 3 неудачных попыток", job.ID)
+			} else {
+				job.ReservedAt = nil
+				database.DB.Save(&job)
+			}
+			continue
+		}
+
+		database.DB.Delete(&job)
+		log.Printf("Задание ID %d успешно выполнено и удалено", job.ID)
+	}
+}
+
 func main() {
 	database.ConnectDB()
-	time.Sleep(5 * 10)
+	time.Sleep(5 * time.Second)
 	database.Migrate()
 	database.SeedArticles()
 	database.SeedRoles()
+
+	go ProcessQueue()
 
 	engine := NewTemplateEngine("./views/*.html")
 
