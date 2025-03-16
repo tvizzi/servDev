@@ -1,3 +1,4 @@
+{{define "layout"}}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -80,6 +81,25 @@
             padding: 10px 0;
             margin-top: 20px;
         }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 200, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            transition: opacity 0.5s;
+        }
+        .notification.show {
+            display: block;
+            opacity: 1;
+        }
+        .notification.hide {
+            opacity: 0;
+        }
     </style>
 </head>
 <body>
@@ -95,24 +115,9 @@
             <a href="/signin">Войти</a>
             <a href="/signup">Регистрация</a>
         </div>
-
-        <script>
-            fetch("/api/user", { credentials: "include" })
-                .then(response => response.json())
-                .then(user => {
-                    console.log("User data:", user); // Логируем ответ API
-
-                    if (user.authenticated && user.user && user.user.roles) {
-                        let authArea = document.getElementById("auth-area");
-                        authArea.innerHTML = `<span>Вы вошли как: <strong>${user.user.roles}</strong></span>
-                <a href="/logout">Выйти</a>`;
-                    }
-                })
-                .catch(err => console.error("Ошибка получения данных пользователя:", err));
-        </script>
     </nav>
 </header>
-
+<div id="notification" class="notification"></div>
 <main>
     {{if eq .Page "home"}}
     <h1>Добро пожаловать!</h1>
@@ -159,5 +164,50 @@
     <p>ФИО: Галкин Захар Дмитриевич</p>
     <p>Группа: 231-321</p>
 </footer>
+
+<script>
+    fetch("/api/user", { credentials: "include" })
+        .then(response => response.json())
+        .then(user => {
+            console.log("User data:", user);
+            if (user.authenticated && user.user && user.user.roles) {
+                let authArea = document.getElementById("auth-area");
+                authArea.innerHTML = `<span>Вы вошли как: <strong>${user.user.roles}</strong></span>
+                <a href="/logout" id="logout-link">Выйти</a>`;
+
+                document.getElementById('logout-link').addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    try {
+                        const response = await fetch('/logout', {
+                            method: 'GET',
+                            credentials: 'include'
+                        });
+                        if (response.ok) {
+                            window.location.href = "/?notification=Выход успешен";
+                        }
+                    } catch (error) {
+                        console.error("Ошибка при выходе:", error);
+                    }
+                });
+            }
+        })
+        .catch(err => console.error("Ошибка получения данных пользователя:", err));
+
+    function showNotification(message) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+        notification.classList.remove('hide');
+        setTimeout(() => {
+            notification.classList.add('hide');
+            notification.classList.remove('show');
+        }, 3000);
+    }
+
+    {{if .Notification}}
+    showNotification("{{.Notification}}");
+    {{end}}
+</script>
 </body>
 </html>
+{{end}}

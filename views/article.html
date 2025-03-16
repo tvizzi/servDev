@@ -3,153 +3,179 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>{{.Article.Title}}</title>
-    <meta name="csrf-token" content="{{.CSRFToken}}">
+    <title>{{.Title}}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
+            margin: 20px;
             background-color: #f4f4f9;
             color: #333;
         }
         h1 {
-            text-align: center;
             color: #007BFF;
-            margin-top: 20px;
+            text-align: center;
         }
         .article-container {
             max-width: 800px;
-            margin: 20px auto;
+            margin: 0 auto;
             background: #fff;
             padding: 20px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
         }
-        .article-title {
-            font-size: 18px;
-            color: #007BFF;
-            margin: 0 0 10px 0;
-        }
-        .article-content {
-            font-size: 14px;
-            color: #555;
-        }
-        .back-link {
-            display: inline-block;
+        .comments-section {
             margin-top: 20px;
-            color: #007BFF;
-            text-decoration: none;
-            border: 1px solid #ddd;
-            padding: 5px 10px;
-            border-radius: 4px;
         }
-        .back-link:hover {
-            background-color: #007BFF;
-            color: #fff;
+        .comment {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+        .comment:last-child {
+            border-bottom: none;
+        }
+        .comment-author {
+            font-weight: bold;
+            color: #007BFF;
+        }
+        .comment-content {
+            margin: 5px 0;
+        }
+        .form-container {
+            margin-top: 20px;
         }
         textarea {
             width: 100%;
-            height: 60px;
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            margin-bottom: 10px;
         }
         button {
+            padding: 10px 20px;
             background-color: #007BFF;
-            color: #fff;
+            color: white;
             border: none;
-            padding: 10px 15px;
             border-radius: 4px;
             cursor: pointer;
         }
         button:hover {
             background-color: #0056b3;
         }
+        .back-button {
+            display: inline-block;
+            margin: 10px 20px;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 200, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            transition: opacity 0.5s;
+        }
+        .notification.show {
+            display: block;
+            opacity: 1;
+        }
+        .notification.hide {
+            opacity: 0;
+        }
     </style>
 </head>
 <body>
-<h1>{{.Title}}</h1>
+<div id="notification" class="notification"></div>
 <div class="article-container">
-    <h2 class="article-title">{{.Article.Title}}</h2>
-    <p class="article-content">{{.Article.Content}}</p>
-    <p><strong>Опубликовано:</strong> {{.Article.PublishedAt}}</p>
-    <a href="/articles" class="back-link">Назад</a>
-</div>
-<section>
-    <h3>Комментарии</h3>
-    <ul id="comments-list">
+    <a href="/articles" class="back-button">Назад к статьям</a>
+    <h1>{{.Article.Title}}</h1>
+    <p>{{.Article.Content}}</p>
+
+    <div class="comments-section">
+        <h2>Комментарии</h2>
+        {{if .Comments}}
         {{range .Comments}}
-        <li>
-            <strong>{{.User.Name}}:</strong> {{.Content}}
-            <br>
-            <small>Дата: {{.CreatedAt}}</small>
-        </li>
-        {{else}}
-        <li>Комментариев пока нет.</li>
+        <div class="comment">
+            <div class="comment-author">{{.User.Name}}</div>
+            <div class="comment-content">{{.Content}}</div>
+        </div>
         {{end}}
-    </ul>
-</section>
-{{if .Auth}}
-<form id="comment-form">
-    <textarea name="content" id="comment-content" placeholder="Введите комментарий"></textarea>
-    <button type="submit">Добавить комментарий</button>
-</form>
-{{else}}
-<p>Вы должны войти, чтобы оставить комментарий.</p>
-{{end}}
+        {{else}}
+        <p>Комментариев пока нет</p>
+        {{end}}
+    </div>
+
+    {{if .Auth}}
+    <div class="form-container">
+        <h3>Добавить комментарий</h3>
+        <form id="comment-form">
+            <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
+            <textarea name="content" placeholder="Ваш комментарий" required></textarea>
+            <button type="submit">Отправить</button>
+        </form>
+    </div>
+    {{else}}
+    <p>Войдите, чтобы оставить комментарий</p>
+    {{end}}
+</div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        const commentForm = document.getElementById('comment-form');
+    {{if .Auth}}
+    document.getElementById('comment-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const content = formData.get('content');
+        const csrfToken = form.querySelector('input[name="_csrf"]').value;
 
-        if (commentForm) {
-            commentForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-
-                const content = document.getElementById('comment-content').value;
-
-                if (!content.trim()) {
-                    alert("Комментарий не может быть пустым.");
-                    return;
-                }
-
-                try {
-                    const response = await fetch(`/articles/{{.Article.ID}}/comments`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-Token': csrfToken
-                        },
-                        credentials: 'include',
-                        body: JSON.stringify({ content })
-                    });
-
-                    if (response.ok) {
-                        // Запрашиваем обновлённый список комментариев
-                        const commentsResponse = await fetch(`/articles/{{.Article.ID}}`, {
-                            headers: {
-                                'Accept': 'text/html'
-                            }
-                        });
-                        const updatedHTML = await commentsResponse.text();
-                        document.querySelector('#comments-list').innerHTML =
-                            new DOMParser().parseFromString(updatedHTML, 'text/html').querySelector('#comments-list').innerHTML;
-
-                        document.getElementById('comment-content').value = '';
-                    } else {
-                        const errorText = await response.text();
-                        alert(`Ошибка добавления комментария: ${errorText}`);
-                    }
-                } catch (error) {
-                    console.error('Ошибка при отправке комментария:', error);
-                    alert('Произошла ошибка при отправке данных');
-                }
+        try {
+            const response = await fetch('/articles/{{.Article.ID}}/comments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({ content })
             });
+
+            if (response.ok) {
+                showNotification("Комментарий добавлен!");
+                window.location.reload();
+            } else {
+                const errorData = await response.json();
+                alert(`Ошибка: ${errorData.error}`);
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Произошла ошибка при отправке комментария');
         }
     });
+    {{end}}
+
+    function showNotification(message) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+        notification.classList.remove('hide');
+        setTimeout(() => {
+            notification.classList.add('hide');
+            notification.classList.remove('show');
+        }, 3000); // 3 секунды
+    }
+
+    {{if .Notification}}
+    showNotification("{{.Notification}}");
+    {{end}}
 </script>
 </body>
 </html>

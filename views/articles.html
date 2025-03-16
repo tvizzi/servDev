@@ -80,11 +80,31 @@
         .back-button:hover {
             background-color: #0056b3;
         }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(200, 0, 0, 0.8); /* Красный фон для ошибок */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            transition: opacity 0.5s;
+        }
+        .notification.show {
+            display: block;
+            opacity: 1;
+        }
+        .notification.hide {
+            opacity: 0;
+        }
     </style>
 </head>
 <body>
 <a href="/" class="back-button">На главную</a>
 <h1>{{.Title}}</h1>
+<div id="notification" class="notification"></div>
 <div class="articles-container">
     {{if .Articles}}
     {{range .Articles}}
@@ -104,12 +124,12 @@
     {{end}}
     <div class="pagination">
         {{if .Page}}
-            {{if gt .Page 1}}
-            <a href="/articles?page={{.PrevPage}}">Предыдущая</a>
-            {{end}}
-            {{if and (mul .Page 10) .Total (lt (mul .Page 10) .Total)}}
-            <a href="/articles?page={{.NextPage}}">Следующая</a>
-            {{end}}
+        {{if gt .Page 1}}
+        <a href="/articles?page={{.PrevPage}}">Предыдущая</a>
+        {{end}}
+        {{if and (mul .Page 10) .Total (lt (mul .Page 10) .Total)}}
+        <a href="/articles?page={{.NextPage}}">Следующая</a>
+        {{end}}
         {{end}}
     </div>
 </div>
@@ -145,24 +165,15 @@
             });
 
             if (response.ok) {
-                // Запрашиваем обновлённый список статей
-                const articlesResponse = await fetch('/articles?page=1', {
-                    headers: {
-                        'Accept': 'text/html'
-                    }
-                });
-                const updatedHTML = await articlesResponse.text();
-                document.querySelector('.articles-container').innerHTML =
-                    new DOMParser().parseFromString(updatedHTML, 'text/html').querySelector('.articles-container').innerHTML;
-
-                form.reset();
+                showNotification("Статья успешно создана!");
+                window.location.reload();
             } else {
-                const errorText = await response.text();
-                alert(`Ошибка создания статьи: ${errorText}`);
+                const errorData = await response.json();
+                showNotification(errorData.error || 'Неизвестная ошибка');
             }
         } catch (error) {
             console.error('Ошибка при отправке:', error);
-            alert('Произошла ошибка при отправке данных');
+            showNotification('Произошла ошибка при отправке данных');
         }
     });
 
@@ -177,23 +188,27 @@
             });
 
             if (response.ok) {
-                // Запрашиваем обновлённый список статей
-                const articlesResponse = await fetch('/articles?page=1', {
-                    headers: {
-                        'Accept': 'text/html'
-                    }
-                });
-                const updatedHTML = await articlesResponse.text();
-                document.querySelector('.articles-container').innerHTML =
-                    new DOMParser().parseFromString(updatedHTML, 'text/html').querySelector('.articles-container').innerHTML;
+                showNotification("Статья успешно удалена!");
+                window.location.reload();
             } else {
-                const errorText = await response.text();
-                alert(`Ошибка удаления: ${errorText}`);
+                const errorData = await response.json();
+                showNotification(errorData.error || 'Неизвестная ошибка');
             }
         } catch (error) {
             console.error("Ошибка запроса:", error);
-            alert("Ошибка выполнения запроса");
+            showNotification("Ошибка выполнения запроса");
         }
+    }
+
+    function showNotification(message) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+        notification.classList.remove('hide');
+        setTimeout(() => {
+            notification.classList.add('hide');
+            notification.classList.remove('show');
+        }, 3000); // 3 секунды
     }
 </script>
 </body>

@@ -1,3 +1,4 @@
+{{define "login"}}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -40,22 +41,31 @@
         button:hover {
             background-color: #0056b3;
         }
-        .message {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 14px;
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(200, 0, 0, 0.8); /* Красный фон для ошибок */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            transition: opacity 0.5s;
         }
-        .error {
-            color: red;
+        .notification.show {
+            display: block;
+            opacity: 1;
         }
-        .success {
-            color: green;
+        .notification.hide {
+            opacity: 0;
         }
     </style>
 </head>
 <body>
 <main>
     <h1>Авторизация</h1>
+    <div id="notification" class="notification"></div>
     <form id="login-form" action="/login" method="POST">
         <input type="hidden" name="_csrf" value="{{.CSRF}}">
         <div>
@@ -68,10 +78,20 @@
         </div>
         <button type="submit">Войти</button>
     </form>
-    <div class="message" id="response-message"></div>
 </main>
 
 <script>
+    function showNotification(message) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+        notification.classList.remove('hide');
+        setTimeout(() => {
+            notification.classList.add('hide');
+            notification.classList.remove('show');
+        }, 3000); // 3 секунды
+    }
+
     document.querySelector('form').addEventListener('submit', async (event) => {
         event.preventDefault();
 
@@ -89,18 +109,17 @@
             });
 
             if (response.ok) {
-                alert("Авторизация успешна!");
-                window.location.href = "/";
+                window.location.href = "/?notification=Вход успешен"; // Редирект сразу
             } else {
-                const errorText = await response.text();
-                console.error("Ошибка авторизации:", errorText);
-                alert(`Ошибка: ${errorText}`);
+                const errorData = await response.json();
+                showNotification(errorData.error || 'Неизвестная ошибка');
             }
         } catch (error) {
             console.error("Ошибка запроса:", error);
-            alert("Ошибка сети. Попробуйте позже.");
+            showNotification("Ошибка сети. Попробуйте позже.");
         }
     });
 </script>
 </body>
 </html>
+{{end}}

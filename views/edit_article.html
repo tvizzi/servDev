@@ -1,3 +1,4 @@
+{{define "edit_article"}}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -39,10 +40,30 @@
             border: none;
             border-radius: 4px;
         }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 200, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            transition: opacity 0.5s;
+        }
+        .notification.show {
+            display: block;
+            opacity: 1;
+        }
+        .notification.hide {
+            opacity: 0;
+        }
     </style>
 </head>
 <body>
 <h1>Редактировать статью</h1>
+<div id="notification" class="notification"></div>
 <div class="form-container">
     <form id="edit-form">
         <input type="hidden" id="csrf_token" value="{{.CSRFToken}}">
@@ -74,15 +95,8 @@
             });
 
             if (response.ok) {
-                // Запрашиваем обновлённую страницу статьи
-                const articleResponse = await fetch(`/articles/${id}`, {
-                    headers: {
-                        'Accept': 'text/html'
-                    }
-                });
-                const updatedHTML = await articleResponse.text();
-                document.body.innerHTML =
-                    new DOMParser().parseFromString(updatedHTML, 'text/html').body.innerHTML;
+                showNotification("Статья успешно обновлена!");
+                window.location.href = `/articles/${id}`;
             } else {
                 const errorText = await response.text();
                 alert(`Ошибка: ${errorText}`);
@@ -92,6 +106,18 @@
             alert('Произошла ошибка при отправке данных');
         }
     });
+
+    function showNotification(message) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+        notification.classList.remove('hide');
+        setTimeout(() => {
+            notification.classList.add('hide');
+            notification.classList.remove('show');
+        }, 6000);
+    }
 </script>
 </body>
 </html>
+{{end}}

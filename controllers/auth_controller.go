@@ -35,12 +35,10 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 	var form RegistrationForm
 	log.Println("Попытка парса")
 
-	// парс данных с формы
 	if err := c.BodyParser(&form); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Неверный формат данных"})
 	}
 
-	// валидация
 	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 	if form.Name == "" || form.Email == "" || form.Password == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "Все поля обязательны для заполнения"})
@@ -76,7 +74,7 @@ func (ctrl *AuthController) Registration(c *fiber.Ctx) error {
 		HTTPOnly: true,
 	})
 
-	return c.Redirect("/")
+	return c.Redirect("/?notification=Регистрация успешна")
 }
 
 func CreateAuthToken(userID uint) (string, error) {
@@ -128,11 +126,12 @@ func (a *AuthController) Login(c *fiber.Ctx) error {
 		Expires:  time.Now().Add(24 * time.Hour),
 	})
 
-	return c.JSON(fiber.Map{"message": "Успешный вход"})
+	return c.Redirect("/?notification=Вход успешен")
 }
 
 func (ctrl *AuthController) Logout(c *fiber.Ctx) error {
 	c.ClearCookie("auth_token")
 	c.Locals("csrf", nil)
-	return c.Redirect("/")
+	// Редирект без уведомления в JSON, уведомление будет на главной
+	return c.Redirect("/?notification=Выход успешен")
 }
